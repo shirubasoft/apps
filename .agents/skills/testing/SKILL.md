@@ -7,6 +7,8 @@ description: Write or run tests whenever a task needs new or updated test covera
 
 ## Invariants
 
+Tests should always run in CI with the same script it uses locally.
+
 Tests should always be designed to be deterministic and run in parallel. 
 
 Avoid using mocks.
