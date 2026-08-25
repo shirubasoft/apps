@@ -5,6 +5,8 @@ description: Scaffold a new application in this repository when a task asks to c
 
 # Creating a new app
 
+Also use `code-structuring` whenever scaffolding includes source-code architecture or multiple projects/modules.
+
 ## Invariants
 
 Always start by creating a new branch from main.
