@@ -32,7 +32,7 @@ public static class SchemaTools
     public static JsonElement CreateDeterministicExample(JsonElement schema)
     {
         var node = CreateNode(schema);
-        using var document = JsonDocument.Parse(node.ToJsonString());
+        using var document = JsonDocument.Parse(node?.ToJsonString() ?? "null");
         return document.RootElement.Clone();
     }
 
