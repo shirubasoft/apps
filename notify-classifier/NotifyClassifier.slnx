@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="src/NotifyClassifier.Api/NotifyClassifier.Api.csproj" />
+  <Project Path="src/NotifyClassifier.App/NotifyClassifier.App.csproj" />
+  <Project Path="src/NotifyClassifier.AppHost/NotifyClassifier.AppHost.csproj" />
+  <Project Path="src/NotifyClassifier.Core/NotifyClassifier.Core.csproj" />
+  <Project Path="src/NotifyClassifier.ServiceDefaults/NotifyClassifier.ServiceDefaults.csproj" />
+  <Project Path="src/NotifyClassifier.Storage/NotifyClassifier.Storage.csproj" />
+  <Project Path="tests/NotifyClassifier.Api.Tests/NotifyClassifier.Api.Tests.csproj" />
+  <Project Path="tests/NotifyClassifier.Core.Tests/NotifyClassifier.Core.Tests.csproj" />
+  <Project Path="tests/NotifyClassifier.EndToEnd.Tests/NotifyClassifier.EndToEnd.Tests.csproj" />
+  <Project Path="tools/CrapScore/CrapScore.csproj" />
+</Solution>
