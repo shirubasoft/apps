@@ -7,11 +7,13 @@ description: Scaffold a new application in this repository when a task asks to c
 
 ## Invariants
 
+Always start by creating a new branch from main.
+
 Don't implement features that weren't asked for.
 
 Create or reuse a CRAP score workflow. Always block the PR if score did not decrease below a certain threshold. Reference: https://github.com/shirubasoft/aspire-modular-apphosts/blob/main/.github/workflows/ci.yml
 
-Create workflows for building, testing and deploying the app.
+Create workflows for building, testing and deploying the app. Use semantic versioning.
 
 Create an Aspire Apphost for orchestrating the app and its dependencies. Every resource should be registered in the Apphost.
 
