@@ -9,6 +9,21 @@ description: Scaffold a new application in this repository when a task asks to c
 
 Always start by creating a new branch from main.
 
+Create a dedicated folder for each new app. Follow this folder structure:
+
+```
+/apps
+  /<app-name>
+    /src
+      /<app-name>
+        /<app-name>.csproj
+    /tests
+      /<app-name>.Tests
+        /<app-name>.Tests.csproj
+    /docs
+    /README.md
+```
+
 Don't implement features that weren't asked for.
 
 Create or reuse a CRAP score workflow. Always block the PR if score did not decrease below a certain threshold. Reference: https://github.com/shirubasoft/aspire-modular-apphosts/blob/main/.github/workflows/ci.yml
