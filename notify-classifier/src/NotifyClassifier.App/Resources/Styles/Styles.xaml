@@ -1,4 +1,4 @@
-﻿<ResourceDictionary 
+﻿<ResourceDictionary
     >
 
     <Style TargetType="ActivityIndicator">
@@ -352,7 +352,7 @@
             </VisualStateGroupList>
         </Setter>
     </Style>
-  
+
     <!--
     <Style TargetType="TitleBar">
         <Setter Property="MinimumHeightRequest" Value="32"/>
