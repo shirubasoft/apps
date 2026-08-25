@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -28,6 +29,11 @@ jobs:
         with:
           global-json-file: notify-classifier/global.json
 
+      - name: Set up shared tool runtime
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
@@ -37,14 +43,88 @@ jobs:
       - name: Install Android workload
         run: dotnet workload install maui-android --skip-manifest-update
 
-      - name: Build, test, enforce CRAP threshold, and package
+      - name: Build, test, calculate CRAP scores, and package
         run: ./build.sh
 
+      - name: Download main-branch CRAP inputs
+        id: main-crap-artifact
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          CRAP_SCORE_API_URL: ${{ github.api_url }}
+          CRAP_SCORE_GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          dotnet run --project ../tools/CrapScore/CrapScore.csproj
+          --configuration Release --no-build --no-restore --
+          download-artifact
+          ${{ github.repository }}
+          ${{ github.event.pull_request.base.sha }}
+          ../artifacts/crap-main-coverage
+
+      - name: Check out main commit after artifact miss
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.main-crap-artifact.outcome == 'failure'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: artifacts/crap-main-source
+
+      - name: Set up main-branch .NET after artifact miss
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.main-crap-artifact.outcome == 'failure'
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: artifacts/crap-main-source/notify-classifier/global.json
+
+      - name: Measure main-branch core CRAP inputs
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.main-crap-artifact.outcome == 'failure'
+        working-directory: artifacts/crap-main-source/notify-classifier
+        run: >-
+          dotnet test tests/NotifyClassifier.Core.Tests/NotifyClassifier.Core.Tests.csproj
+          --configuration Release
+          --collect:"XPlat Code Coverage"
+          --results-directory ${{ github.workspace }}/artifacts/crap-main-coverage/core
+
+      - name: Measure main-branch API CRAP inputs
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.main-crap-artifact.outcome == 'failure'
+        working-directory: artifacts/crap-main-source/notify-classifier
+        run: >-
+          dotnet test tests/NotifyClassifier.Api.Tests/NotifyClassifier.Api.Tests.csproj
+          --configuration Release
+          --collect:"XPlat Code Coverage"
+          --results-directory ${{ github.workspace }}/artifacts/crap-main-coverage/api
+
+      - name: Require CRAP reduction toward 5
+        if: github.event_name == 'pull_request'
+        run: >-
+          dotnet run --project ../tools/CrapScore/CrapScore.csproj
+          --configuration Release --no-build --no-restore --
+          artifacts/test-results
+          --base-reports ../artifacts/crap-main-coverage
+          --target 5
+
       - name: Upload APK and quality report
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: notify-classifier-${{ github.sha }}
           path: |
             notify-classifier/artifacts/NotifyClassifier.apk
+            notify-classifier/artifacts/coverage/crap-score.md
+          if-no-files-found: error
+
+      - name: Upload CRAP score inputs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: crap-score-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            notify-classifier/artifacts/test-results/**/coverage.cobertura.xml
             notify-classifier/artifacts/coverage/crap-score.md
           if-no-files-found: error
