@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: notify-classifier
+    env:
+      CI: true
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: notify-classifier/global.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Android workload
+        run: dotnet workload install maui-android --skip-manifest-update
+
+      - name: Build, test, enforce CRAP threshold, and package
+        run: ./build.sh
+
+      - name: Upload APK and quality report
+        uses: actions/upload-artifact@v7
+        with:
+          name: notify-classifier-${{ github.sha }}
+          path: |
+            notify-classifier/artifacts/NotifyClassifier.apk
+            notify-classifier/artifacts/coverage/crap-score.md
+          if-no-files-found: error
