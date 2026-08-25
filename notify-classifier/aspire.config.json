@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "src/NotifyClassifier.AppHost/NotifyClassifier.AppHost.csproj"
+  }
+}
