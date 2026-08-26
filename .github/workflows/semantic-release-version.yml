@@ -1,0 +1,61 @@
+name: Calculate semantic release version
+
+on:
+  workflow_call:
+    inputs:
+      application-directory:
+        description: Directory containing the semantic-release configuration
+        required: true
+        type: string
+      tag-prefix:
+        description: Application-specific prefix before the semantic version
+        required: true
+        type: string
+    outputs:
+      version:
+        description: Next release version, or an empty string when no release is due
+        value: ${{ jobs.calculate.outputs.version }}
+
+permissions:
+  contents: write
+
+jobs:
+  calculate:
+    name: Calculate next version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release-version.outputs.version }}
+
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install locked release tooling
+        run: npm ci --prefix .github/release
+
+      - name: Bootstrap application version history
+        env:
+          RELEASE_TAG_PREFIX: ${{ inputs.tag-prefix }}
+        run: .github/release/bootstrap-version-tag.sh "$RELEASE_TAG_PREFIX"
+
+      - name: Calculate release version
+        id: release-version
+        working-directory: ${{ inputs.application-directory }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXT_RELEASE_VERSION_FILE: ${{ runner.temp }}/next-release-version
+          SEMANTIC_RELEASE_BIN: ${{ github.workspace }}/.github/release/node_modules/.bin/semantic-release
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$SEMANTIC_RELEASE_BIN" --dry-run
+          if [[ -f "$NEXT_RELEASE_VERSION_FILE" ]]; then
+            echo "version=$(<"$NEXT_RELEASE_VERSION_FILE")" >> "$GITHUB_OUTPUT"
+          fi

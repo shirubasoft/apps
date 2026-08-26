@@ -1,0 +1,34 @@
+{
+  "branches": [
+    "main"
+  ],
+  "tagFormat": "notify-classifier-v${version}",
+  "plugins": [
+    [
+      "../.github/release/application-semantic-release.mjs",
+      {
+        "preset": "conventionalcommits",
+        "scope": "notify-classifier"
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "verifyReleaseCmd": "if [ -n \"${NEXT_RELEASE_VERSION_FILE:-}\" ]; then printf '%s\\n' '${nextRelease.version}' > \"$NEXT_RELEASE_VERSION_FILE\"; else bash ../.github/release/verify-application-assets.sh '${nextRelease.version}' artifacts/release-version.txt artifacts/NotifyClassifier.apk; fi"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "artifacts/NotifyClassifier.apk",
+            "label": "Notify Classifier Android APK"
+          }
+        ],
+        "successComment": false,
+        "failComment": false
+      }
+    ]
+  ]
+}
