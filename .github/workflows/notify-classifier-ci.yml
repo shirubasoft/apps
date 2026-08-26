@@ -46,6 +46,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up .NET
@@ -74,9 +75,32 @@ jobs:
             ./build.sh
           fi
 
+      - name: Detect CRAP score input changes
+        id: crap-score-inputs
+        if: github.event_name == 'pull_request'
+        env:
+          TARGET_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet "$TARGET_SHA"...HEAD -- \
+            Directory.Build.props \
+            Directory.Packages.props \
+            global.json \
+            src/NotifyClassifier.Api \
+            src/NotifyClassifier.Core \
+            src/NotifyClassifier.ServiceDefaults \
+            src/NotifyClassifier.Storage \
+            tests/NotifyClassifier.Api.Tests \
+            tests/NotifyClassifier.Core.Tests; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download target-branch CRAP inputs
         id: target-crap-artifact
-        if: github.event_name == 'pull_request'
+        if: steps.crap-score-inputs.outputs.changed == 'true'
         continue-on-error: true
         env:
           CRAP_SCORE_API_URL: ${{ github.api_url }}
@@ -92,7 +116,7 @@ jobs:
 
       - name: Check out pull request target after artifact miss
         if: >-
-          github.event_name == 'pull_request' &&
+          steps.crap-score-inputs.outputs.changed == 'true' &&
           steps.target-crap-artifact.outcome == 'failure'
         uses: actions/checkout@v7
         with:
@@ -101,7 +125,7 @@ jobs:
 
       - name: Set up target-branch .NET after artifact miss
         if: >-
-          github.event_name == 'pull_request' &&
+          steps.crap-score-inputs.outputs.changed == 'true' &&
           steps.target-crap-artifact.outcome == 'failure'
         uses: actions/setup-dotnet@v5
         with:
@@ -109,7 +133,7 @@ jobs:
 
       - name: Measure target-branch core CRAP inputs
         if: >-
-          github.event_name == 'pull_request' &&
+          steps.crap-score-inputs.outputs.changed == 'true' &&
           steps.target-crap-artifact.outcome == 'failure'
         working-directory: artifacts/crap-target-source/notify-classifier
         run: >-
@@ -120,7 +144,7 @@ jobs:
 
       - name: Measure target-branch API CRAP inputs
         if: >-
-          github.event_name == 'pull_request' &&
+          steps.crap-score-inputs.outputs.changed == 'true' &&
           steps.target-crap-artifact.outcome == 'failure'
         working-directory: artifacts/crap-target-source/notify-classifier
         run: >-
@@ -130,7 +154,7 @@ jobs:
           --results-directory ${{ github.workspace }}/artifacts/crap-target-coverage/api
 
       - name: Require CRAP reduction toward 5
-        if: github.event_name == 'pull_request'
+        if: steps.crap-score-inputs.outputs.changed == 'true'
         run: >-
           dotnet run --project ../tools/CrapScore/CrapScore.csproj
           --configuration Release --no-build --no-restore --
