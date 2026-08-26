@@ -28,9 +28,13 @@ Create a dedicated folder for each new app. Follow this folder structure:
 
 Don't implement features that weren't asked for.
 
-Create or reuse a CRAP score workflow. Always block the PR if score did not decrease below a certain threshold. Reference: https://github.com/shirubasoft/aspire-modular-apphosts/blob/main/.github/workflows/ci.yml
+Inspect `.github/workflows`, `.github/release`, and `tools` before adding CI or release code. Reuse the repository's semantic-release workflow, release scripts, and CRAP score tool.
 
-Create workflows for building, testing and deploying the app. Use semantic versioning.
+Give each app explicitly named workflows with `push` and `pull_request` path filters for its folder. Keep shared workflows triggerless except for `workflow_call`.
+
+Use an app-specific artifact and tag prefix. Publish the artifact built by successful `main` CI instead of rebuilding it in the release workflow. Scope release commits to the app name.
+
+Use `tools/CrapScore` rather than copying it. Run its reduction check only when covered source or test inputs change, and give each app its own coverage artifact prefix.
 
 Create an Aspire Apphost for orchestrating the app and its dependencies. Every resource should be registered in the Apphost.
 
