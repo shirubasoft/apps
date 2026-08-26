@@ -32,7 +32,9 @@ Open the app, grant notification access, choose installed apps, and assign a sch
 
 ## Tests and artifacts
 
-`./build.sh` is the only CI entry point. It tests the shared CRAP score tool, builds the solution, runs core, SQLite, API, and Aspire end-to-end tests, calculates method CRAP scores, and writes `artifacts/NotifyClassifier.apk`. On pull requests, CI requires the maximum CRAP score to decrease from the main-branch value until it reaches 5. It may not rise above 5 after that. CI uploads the APK and coverage inputs for every run. A semantic version tag such as `v0.1.0` publishes the APK as a GitHub release asset.
+`./build.sh` is the Notify Classifier CI entry point. It builds the solution, runs core, SQLite, API, and Aspire end-to-end tests, calculates method CRAP scores, and writes `artifacts/NotifyClassifier.apk`. On pull requests that change covered backend or test inputs, CI requires the maximum CRAP score to decrease from the target-branch value until it reaches 5. It may not rise above 5 after that. CI uploads the APK and coverage inputs for every run.
+
+Merges to `main` that change `notify-classifier/` run the app's CI workflow. Conventional `feat(notify-classifier):`, `fix(notify-classifier):`, and `perf(notify-classifier):` commits select the next version. After CI succeeds, the release workflow publishes the tested APK in a GitHub release tagged `notify-classifier-v<version>`. The shared CRAP score tool has its own workflow and runs only for changes under `tools/`.
 
 The Android device test lives in `scripts/android-e2e.sh`. It installs the APK, grants listener access, selects the Android shell package, posts a real notification, and checks that the retained queue reaches `Completed`.
 

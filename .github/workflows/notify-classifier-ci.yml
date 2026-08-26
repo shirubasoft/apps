@@ -1,0 +1,184 @@
+name: Notify Classifier CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - notify-classifier/**
+  pull_request:
+    paths:
+      - notify-classifier/**
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  release-version:
+    name: Calculate Notify Classifier release version
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/semantic-release-version.yml
+    with:
+      application-directory: notify-classifier
+      tag-prefix: notify-classifier-v
+    secrets: inherit
+
+  build-test-apk:
+    name: Build, test, and package Notify Classifier
+    needs: release-version
+    if: >-
+      always() &&
+      (needs.release-version.result == 'success' ||
+      needs.release-version.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: notify-classifier
+    env:
+      CI: true
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: notify-classifier/global.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Android workload
+        run: dotnet workload install maui-android --skip-manifest-update
+
+      - name: Build, test, calculate CRAP scores, and package
+        env:
+          RELEASE_VERSION: ${{ needs.release-version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$RELEASE_VERSION" ]]; then
+            ./build.sh --release-version "$RELEASE_VERSION"
+          else
+            ./build.sh
+          fi
+
+      - name: Detect CRAP score input changes
+        id: crap-score-inputs
+        if: github.event_name == 'pull_request'
+        env:
+          TARGET_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet "$TARGET_SHA"...HEAD -- \
+            Directory.Build.props \
+            Directory.Packages.props \
+            global.json \
+            src/NotifyClassifier.Api \
+            src/NotifyClassifier.Core \
+            src/NotifyClassifier.ServiceDefaults \
+            src/NotifyClassifier.Storage \
+            tests/NotifyClassifier.Api.Tests \
+            tests/NotifyClassifier.Core.Tests; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download target-branch CRAP inputs
+        id: target-crap-artifact
+        if: steps.crap-score-inputs.outputs.changed == 'true'
+        continue-on-error: true
+        env:
+          CRAP_SCORE_API_URL: ${{ github.api_url }}
+          CRAP_SCORE_GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          dotnet run --project ../tools/CrapScore/CrapScore.csproj
+          --configuration Release --no-build --no-restore --
+          download-artifact
+          ${{ github.repository }}
+          ${{ github.event.pull_request.base.sha }}
+          ../artifacts/crap-target-coverage
+          notify-classifier-crap-score
+
+      - name: Check out pull request target after artifact miss
+        if: >-
+          steps.crap-score-inputs.outputs.changed == 'true' &&
+          steps.target-crap-artifact.outcome == 'failure'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: artifacts/crap-target-source
+
+      - name: Set up target-branch .NET after artifact miss
+        if: >-
+          steps.crap-score-inputs.outputs.changed == 'true' &&
+          steps.target-crap-artifact.outcome == 'failure'
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: artifacts/crap-target-source/notify-classifier/global.json
+
+      - name: Measure target-branch core CRAP inputs
+        if: >-
+          steps.crap-score-inputs.outputs.changed == 'true' &&
+          steps.target-crap-artifact.outcome == 'failure'
+        working-directory: artifacts/crap-target-source/notify-classifier
+        run: >-
+          dotnet test tests/NotifyClassifier.Core.Tests/NotifyClassifier.Core.Tests.csproj
+          --configuration Release
+          --collect:"XPlat Code Coverage"
+          --results-directory ${{ github.workspace }}/artifacts/crap-target-coverage/core
+
+      - name: Measure target-branch API CRAP inputs
+        if: >-
+          steps.crap-score-inputs.outputs.changed == 'true' &&
+          steps.target-crap-artifact.outcome == 'failure'
+        working-directory: artifacts/crap-target-source/notify-classifier
+        run: >-
+          dotnet test tests/NotifyClassifier.Api.Tests/NotifyClassifier.Api.Tests.csproj
+          --configuration Release
+          --collect:"XPlat Code Coverage"
+          --results-directory ${{ github.workspace }}/artifacts/crap-target-coverage/api
+
+      - name: Require CRAP reduction toward 5
+        if: steps.crap-score-inputs.outputs.changed == 'true'
+        run: >-
+          dotnet run --project ../tools/CrapScore/CrapScore.csproj
+          --configuration Release --no-build --no-restore --
+          artifacts/test-results
+          --base-reports ../artifacts/crap-target-coverage
+          --target 5
+
+      - name: Upload Notify Classifier build
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: notify-classifier-build
+          path: |
+            notify-classifier/artifacts/NotifyClassifier.apk
+            notify-classifier/artifacts/coverage/crap-score.md
+            notify-classifier/artifacts/release-version.txt
+          if-no-files-found: error
+
+      - name: Upload Notify Classifier CRAP score inputs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: notify-classifier-crap-score-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            notify-classifier/artifacts/test-results/**/coverage.cobertura.xml
+            notify-classifier/artifacts/coverage/crap-score.md
+          if-no-files-found: error

@@ -24,3 +24,6 @@ dotnet run --project tools/CrapScore -- \
 The tool combines duplicate method coverage by taking the union of covered lines. It rejects missing
 method complexity, missing line data, and conflicting complexity values instead of producing a
 plausible but incorrect score.
+
+`download-artifact` looks for `crap-score-<commit>` by default. Pass an artifact prefix as the final
+argument when each app has its own coverage stream, such as `notify-classifier-crap-score`.
