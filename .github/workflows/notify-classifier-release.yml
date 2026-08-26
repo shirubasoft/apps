@@ -1,0 +1,60 @@
+name: Notify Classifier release
+
+on:
+  workflow_run:
+    workflows:
+      - Notify Classifier CI
+    types:
+      - completed
+
+concurrency:
+  group: notify-classifier-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish Notify Classifier APK
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Check out tested commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download tested Notify Classifier build
+        uses: actions/download-artifact@v7
+        with:
+          name: notify-classifier-build
+          path: notify-classifier/artifacts
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install locked release tooling
+        run: npm ci --prefix .github/release
+
+      - name: Bootstrap Notify Classifier version history
+        run: .github/release/bootstrap-version-tag.sh notify-classifier-v
+
+      - name: Publish release
+        working-directory: notify-classifier
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEMANTIC_RELEASE_BIN: ${{ github.workspace }}/.github/release/node_modules/.bin/semantic-release
+        run: '"$SEMANTIC_RELEASE_BIN"'
