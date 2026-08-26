@@ -13,7 +13,8 @@ internal static class CommandLine
     public const string Usage =
         "Usage: CrapScore <coverage-file-or-directory>... [--output <markdown-file>] "
         + "[--base-reports <coverage-file-or-directory>]... [--target <score>]\n"
-        + "       CrapScore download-artifact <owner/repository> <commit> <output-directory>";
+        + "       CrapScore download-artifact <owner/repository> <commit> <output-directory> "
+        + "[artifact-prefix]";
 
     public static bool TryParse(string[] args, out CommandLineOptions options, out string? error)
     {

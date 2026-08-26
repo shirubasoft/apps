@@ -7,6 +7,17 @@ namespace CrapScore.Tests;
 public sealed class GitHubArtifactDownloaderTests
 {
     [Fact]
+    public async Task DownloadAsyncRequiresAnArtifactPrefix()
+    {
+        using var downloader = new GitHubArtifactDownloader(new HttpClient());
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(
+            () => downloader.DownloadAsync("owner/repository", "abc", "output", ""));
+
+        Assert.Contains("artifact prefix", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SelectArtifactDownloadUrlChoosesNewestMatchingRun()
     {
         using var document = JsonDocument.Parse(

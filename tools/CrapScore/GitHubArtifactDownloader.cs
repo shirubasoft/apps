@@ -31,17 +31,21 @@ internal sealed class GitHubArtifactDownloader(HttpClient httpClient) : IDisposa
         string repository,
         string commit,
         string outputDirectory,
+        string artifactPrefix = "crap-score",
         CancellationToken cancellationToken = default)
     {
         var repositoryParts = repository.Split(
             '/',
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (repositoryParts.Length != 2 || string.IsNullOrWhiteSpace(commit))
+        if (repositoryParts.Length != 2
+            || string.IsNullOrWhiteSpace(commit)
+            || string.IsNullOrWhiteSpace(artifactPrefix))
         {
-            throw new ArgumentException("Repository must be OWNER/REPOSITORY and commit must be non-empty.");
+            throw new ArgumentException(
+                "Repository must be OWNER/REPOSITORY; commit and artifact prefix must be non-empty.");
         }
 
-        var artifactName = $"crap-score-{commit}";
+        var artifactName = $"{artifactPrefix}-{commit}";
         var requestPath = $"repos/{Uri.EscapeDataString(repositoryParts[0])}/"
             + $"{Uri.EscapeDataString(repositoryParts[1])}/actions/artifacts"
             + $"?name={Uri.EscapeDataString(artifactName)}&per_page=100";

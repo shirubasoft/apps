@@ -7,9 +7,11 @@ internal static class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        if (args is ["download-artifact", var repository, var commit, var outputDirectory])
+        if (args.Length is 4 or 5
+            && string.Equals(args[0], "download-artifact", StringComparison.Ordinal))
         {
-            return await DownloadArtifactAsync(repository, commit, outputDirectory);
+            var artifactPrefix = args.Length == 5 ? args[4] : "crap-score";
+            return await DownloadArtifactAsync(args[1], args[2], args[3], artifactPrefix);
         }
 
         if (!CommandLine.TryParse(args, out var options, out var error))
@@ -51,12 +53,13 @@ internal static class Program
     private static async Task<int> DownloadArtifactAsync(
         string repository,
         string commit,
-        string outputDirectory)
+        string outputDirectory,
+        string artifactPrefix)
     {
         try
         {
             using var downloader = GitHubArtifactDownloader.CreateFromEnvironment();
-            await downloader.DownloadAsync(repository, commit, outputDirectory);
+            await downloader.DownloadAsync(repository, commit, outputDirectory, artifactPrefix);
             Console.WriteLine($"Downloaded CRAP score artifact for {commit} to {outputDirectory}.");
             return 0;
         }
