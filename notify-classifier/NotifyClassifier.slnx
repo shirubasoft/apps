@@ -8,5 +8,4 @@
   <Project Path="tests/NotifyClassifier.Api.Tests/NotifyClassifier.Api.Tests.csproj" />
   <Project Path="tests/NotifyClassifier.Core.Tests/NotifyClassifier.Core.Tests.csproj" />
   <Project Path="tests/NotifyClassifier.EndToEnd.Tests/NotifyClassifier.EndToEnd.Tests.csproj" />
-  <Project Path="tools/CrapScore/CrapScore.csproj" />
 </Solution>

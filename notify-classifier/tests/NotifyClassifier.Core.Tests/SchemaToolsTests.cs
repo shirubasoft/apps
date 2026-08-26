@@ -45,6 +45,7 @@ public sealed class SchemaToolsTests
         { """{"type":"string","format":"unknown"}""", "\"classified\"" },
         { """{"type":"string"}""", "\"classified\"" },
         { """{"type":["null","boolean"]}""", "false" },
+        { """{"type":"null"}""", "null" },
         { """{"properties":{}}""", "{}" },
         { """{"type":"number","minimum":1.5}""", "1.5" },
         { """{"type":"integer","minimum":1.5}""", "2" },

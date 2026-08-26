@@ -1,6 +1,6 @@
 ---
 name: finishing-up-work
-description: Finish and hand off development work when implementation is complete. Do not use while any implementation remains.
+description: Post-process work after a task is completed. Use whenever a goal or request is completed.
 ---
 
 # Finishing up work

@@ -2,14 +2,19 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+workspace_root="$(cd "$repo_root/.." && pwd)"
 configuration="${CONFIGURATION:-Release}"
 artifact_root="$repo_root/artifacts"
 test_results="$artifact_root/test-results"
 coverage_root="$artifact_root/coverage"
 android_output="$artifact_root/android"
+crap_score_project="$workspace_root/tools/CrapScore/CrapScore.csproj"
+crap_score_tests="$workspace_root/tools/CrapScore.Tests/CrapScore.Tests.csproj"
 
 rm -rf "$test_results" "$coverage_root" "$android_output"
 mkdir -p "$test_results" "$coverage_root" "$android_output"
+
+dotnet test "$crap_score_tests" --configuration "$configuration"
 
 dotnet restore "$repo_root/NotifyClassifier.slnx"
 dotnet build "$repo_root/NotifyClassifier.slnx" --configuration "$configuration" --no-restore
@@ -23,9 +28,9 @@ dotnet test "$repo_root/tests/NotifyClassifier.Api.Tests/NotifyClassifier.Api.Te
 dotnet test "$repo_root/tests/NotifyClassifier.EndToEnd.Tests/NotifyClassifier.EndToEnd.Tests.csproj" \
   --configuration "$configuration" --no-build --no-restore
 
-dotnet run --project "$repo_root/tools/CrapScore/CrapScore.csproj" \
+dotnet run --project "$crap_score_project" \
   --configuration "$configuration" --no-build --no-restore -- \
-  "$test_results" --threshold 30 --output "$coverage_root/crap-score.md"
+  "$test_results" --target 5 --output "$coverage_root/crap-score.md"
 
 dotnet publish "$repo_root/src/NotifyClassifier.App/NotifyClassifier.App.csproj" \
   --configuration "$configuration" --framework net11.0-android --no-restore \
