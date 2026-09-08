@@ -1,0 +1,60 @@
+name: Pen Sketch release
+
+on:
+  workflow_run:
+    workflows:
+      - Pen Sketch CI
+    types:
+      - completed
+
+concurrency:
+  group: pen-sketch-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish Pen Sketch APK
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Check out tested commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download tested Pen Sketch build
+        uses: actions/download-artifact@v7
+        with:
+          name: pen-sketch-build
+          path: pen-sketch/artifacts
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install locked release tooling
+        run: npm ci --prefix .github/release
+
+      - name: Bootstrap Pen Sketch version history
+        run: .github/release/bootstrap-version-tag.sh pen-sketch-v
+
+      - name: Publish release
+        working-directory: pen-sketch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEMANTIC_RELEASE_BIN: ${{ github.workspace }}/.github/release/node_modules/.bin/semantic-release
+        run: '"$SEMANTIC_RELEASE_BIN"'

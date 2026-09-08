@@ -1,0 +1,34 @@
+{
+  "branches": [
+    "main"
+  ],
+  "tagFormat": "pen-sketch-v${version}",
+  "plugins": [
+    [
+      "../.github/release/application-semantic-release.mjs",
+      {
+        "preset": "conventionalcommits",
+        "scope": "pen-sketch"
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "verifyReleaseCmd": "if [ -n \"$NEXT_RELEASE_VERSION_FILE\" ]; then printf '%s\\n' '${nextRelease.version}' > \"$NEXT_RELEASE_VERSION_FILE\"; else bash ../.github/release/verify-application-assets.sh '${nextRelease.version}' artifacts/release-version.txt artifacts/PenSketch.apk; fi"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "artifacts/PenSketch.apk",
+            "label": "Pen Sketch Android APK"
+          }
+        ],
+        "successComment": false,
+        "failComment": false
+      }
+    ]
+  ]
+}
