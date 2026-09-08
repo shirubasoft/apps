@@ -1,0 +1,326 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-08T22:00:53.015594Z",
+  "title": "Design System: Pen Sketch",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Selection blue",
+        "tonalRamp": [
+          "oklch(15.00% 0.16853 257.94)",
+          "oklch(26.43% 0.16853 257.94)",
+          "oklch(37.86% 0.16853 257.94)",
+          "oklch(49.29% 0.16853 257.94)",
+          "oklch(60.71% 0.16853 257.94)",
+          "oklch(72.14% 0.16853 257.94)",
+          "oklch(83.57% 0.16853 257.94)",
+          "oklch(95.00% 0.16853 257.94)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "White paper",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Graphite ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.01474 256.79)",
+          "oklch(26.43% 0.01474 256.79)",
+          "oklch(37.86% 0.01474 256.79)",
+          "oklch(49.29% 0.01474 256.79)",
+          "oklch(60.71% 0.01474 256.79)",
+          "oklch(72.14% 0.01474 256.79)",
+          "oklch(83.57% 0.01474 256.79)",
+          "oklch(95.00% 0.01474 256.79)"
+        ]
+      },
+      "grid": {
+        "role": "neutral",
+        "displayName": "Pale grid",
+        "tonalRamp": [
+          "oklch(15.00% 0.00981 252.82)",
+          "oklch(26.43% 0.00981 252.82)",
+          "oklch(37.86% 0.00981 252.82)",
+          "oklch(49.29% 0.00981 252.82)",
+          "oklch(60.71% 0.00981 252.82)",
+          "oklch(72.14% 0.00981 252.82)",
+          "oklch(83.57% 0.00981 252.82)",
+          "oklch(95.00% 0.00981 252.82)"
+        ]
+      },
+      "canvas-matte": {
+        "role": "neutral",
+        "displayName": "Canvas matte",
+        "tonalRamp": [
+          "oklch(15.00% 0.01089 256.70)",
+          "oklch(26.43% 0.01089 256.70)",
+          "oklch(37.86% 0.01089 256.70)",
+          "oklch(49.29% 0.01089 256.70)",
+          "oklch(60.71% 0.01089 256.70)",
+          "oklch(72.14% 0.01089 256.70)",
+          "oklch(83.57% 0.01089 256.70)",
+          "oklch(95.00% 0.01089 256.70)"
+        ]
+      },
+      "surface-light": {
+        "role": "neutral",
+        "displayName": "Light app background",
+        "tonalRamp": [
+          "oklch(15.00% 0.00624 255.48)",
+          "oklch(26.43% 0.00624 255.48)",
+          "oklch(37.86% 0.00624 255.48)",
+          "oklch(49.29% 0.00624 255.48)",
+          "oklch(60.71% 0.00624 255.48)",
+          "oklch(72.14% 0.00624 255.48)",
+          "oklch(83.57% 0.00624 255.48)",
+          "oklch(95.00% 0.00624 255.48)"
+        ]
+      },
+      "surface-dark": {
+        "role": "neutral",
+        "displayName": "Dark app background",
+        "tonalRamp": [
+          "oklch(15.00% 0.02386 259.30)",
+          "oklch(26.43% 0.02386 259.30)",
+          "oklch(37.86% 0.02386 259.30)",
+          "oklch(49.29% 0.02386 259.30)",
+          "oklch(60.71% 0.02386 259.30)",
+          "oklch(72.14% 0.02386 259.30)",
+          "oklch(83.57% 0.02386 259.30)",
+          "oklch(95.00% 0.02386 259.30)"
+        ]
+      },
+      "foreground-dark": {
+        "role": "neutral",
+        "displayName": "Dark-theme foreground",
+        "tonalRamp": [
+          "oklch(15.00% 0.01494 260.73)",
+          "oklch(26.43% 0.01494 260.73)",
+          "oklch(37.86% 0.01494 260.73)",
+          "oklch(49.29% 0.01494 260.73)",
+          "oklch(60.71% 0.01494 260.73)",
+          "oklch(72.14% 0.01494 260.73)",
+          "oklch(83.57% 0.01494 260.73)",
+          "oklch(95.00% 0.01494 260.73)"
+        ]
+      },
+      "muted-light": {
+        "role": "neutral",
+        "displayName": "Light-theme secondary text",
+        "tonalRamp": [
+          "oklch(15.00% 0.03580 254.48)",
+          "oklch(26.43% 0.03580 254.48)",
+          "oklch(37.86% 0.03580 254.48)",
+          "oklch(49.29% 0.03580 254.48)",
+          "oklch(60.71% 0.03580 254.48)",
+          "oklch(72.14% 0.03580 254.48)",
+          "oklch(83.57% 0.03580 254.48)",
+          "oklch(95.00% 0.03580 254.48)"
+        ]
+      },
+      "muted-dark": {
+        "role": "neutral",
+        "displayName": "Dark-theme secondary text",
+        "tonalRamp": [
+          "oklch(15.00% 0.02797 260.31)",
+          "oklch(26.43% 0.02797 260.31)",
+          "oklch(37.86% 0.02797 260.31)",
+          "oklch(49.29% 0.02797 260.31)",
+          "oklch(60.71% 0.02797 260.31)",
+          "oklch(72.14% 0.02797 260.31)",
+          "oklch(83.57% 0.02797 260.31)",
+          "oklch(95.00% 0.02797 260.31)"
+        ]
+      },
+      "tonal-light": {
+        "role": "neutral",
+        "displayName": "Light tonal control",
+        "tonalRamp": [
+          "oklch(15.00% 0.02013 257.47)",
+          "oklch(26.43% 0.02013 257.47)",
+          "oklch(37.86% 0.02013 257.47)",
+          "oklch(49.29% 0.02013 257.47)",
+          "oklch(60.71% 0.02013 257.47)",
+          "oklch(72.14% 0.02013 257.47)",
+          "oklch(83.57% 0.02013 257.47)",
+          "oklch(95.00% 0.02013 257.47)"
+        ]
+      },
+      "tonal-dark": {
+        "role": "neutral",
+        "displayName": "Dark tonal control",
+        "tonalRamp": [
+          "oklch(15.00% 0.04177 258.31)",
+          "oklch(26.43% 0.04177 258.31)",
+          "oklch(37.86% 0.04177 258.31)",
+          "oklch(49.29% 0.04177 258.31)",
+          "oklch(60.71% 0.04177 258.31)",
+          "oklch(72.14% 0.04177 258.31)",
+          "oklch(83.57% 0.04177 258.31)",
+          "oklch(95.00% 0.04177 258.31)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Sketch title",
+        "purpose": "Bold app title, with tail truncation."
+      },
+      "body": {
+        "displayName": "Body and controls",
+        "purpose": "Buttons, duration picker, and explanatory copy."
+      },
+      "label": {
+        "displayName": "Status and hints",
+        "purpose": "Status, wrapped hints, opacity, and preview percentages."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "transition-easing",
+        "value": "t * t * (3 - 2 * t)",
+        "purpose": "Smoothstep interpolation of object position, size, and opacity; t is clamped from 0 to 1."
+      },
+      {
+        "name": "trigger-hold",
+        "value": "700ms",
+        "purpose": "Show the initial pose and trigger before the transition."
+      },
+      {
+        "name": "end-hold",
+        "value": "600ms",
+        "purpose": "Hold the end pose after the transition."
+      },
+      {
+        "name": "transition-duration",
+        "value": "300ms | 600ms | 1000ms | 1500ms | 2000ms | 3000ms",
+        "purpose": "Duration picker choices; the document default is 1000ms."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "description": "Export and Play. Browser preview maps 1dp to 1 CSS px and baseline sp to px; browser hover and focus are illustrative.",
+      "html": "<button class=\"ds-button ds-primary\">Export</button>",
+      "css": ".ds-button{font:14px system-ui,sans-serif;min-height:48px;min-width:48px;padding:4px 12px;border:0;border-radius:12px;cursor:pointer}.ds-button:focus-visible{outline:2px solid #246BCE;outline-offset:3px}.ds-button:active{filter:brightness(.92)}.ds-primary,.ds-primary:hover{background:#246BCE;color:#FFFFFF}",
+      "refersTo": "button-primary"
+    },
+    {
+      "name": "Light tonal action",
+      "kind": "button",
+      "description": "Secondary action in light theme. Disabled appearance and interaction feedback remain Android-owned in the app.",
+      "html": "<button class=\"ds-button ds-tonal\">Sketch</button>",
+      "css": ".ds-button{font:14px system-ui,sans-serif;min-height:48px;min-width:48px;padding:4px 12px;border:0;border-radius:12px;cursor:pointer}.ds-button:focus-visible{outline:2px solid #246BCE;outline-offset:3px}.ds-button:active{filter:brightness(.92)}.ds-tonal,.ds-tonal:hover{background:#DFE8F5;color:#252A31}",
+      "refersTo": "button-tonal-light"
+    },
+    {
+      "name": "Dark tonal action",
+      "kind": "button",
+      "description": "Secondary action in dark theme. Browser preview only.",
+      "html": "<button class=\"ds-button ds-tonal-dark\">Sketch</button>",
+      "css": ".ds-button{font:14px system-ui,sans-serif;min-height:48px;min-width:48px;padding:4px 12px;border:0;border-radius:12px;cursor:pointer}.ds-button:focus-visible{outline:2px solid #246BCE;outline-offset:3px}.ds-button:active{filter:brightness(.92)}.ds-tonal-dark,.ds-tonal-dark:hover{background:#29374C;color:#E7EDF7}",
+      "refersTo": "button-tonal-dark"
+    },
+    {
+      "name": "Draw and Animate",
+      "kind": "nav",
+      "description": "Equal-width mode buttons. Selected mode has a native semantic description and Android Selected state. This static HTML preview shows Draw selected.",
+      "html": "<nav class=\"ds-modes\" aria-label=\"Sketch mode\"><button class=\"ds-button ds-mode ds-selected\" aria-pressed=\"true\">Draw</button><button class=\"ds-button ds-mode\" aria-pressed=\"false\">Animate</button></nav>",
+      "css": ".ds-button{font:14px system-ui,sans-serif;min-height:48px;min-width:48px;padding:4px 12px;border:0;border-radius:12px;cursor:pointer}.ds-button:focus-visible{outline:2px solid #246BCE;outline-offset:3px}.ds-button:active{filter:brightness(.92)}.ds-modes{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ds-mode,.ds-mode:hover{background:#DFE8F5;color:#252A31}.ds-selected,.ds-selected:hover{background:#246BCE;color:white}"
+    },
+    {
+      "name": "Drawing tools",
+      "kind": "custom",
+      "description": "Scrollable labeled tools preserve their width. This static browser preview shows Select selected; Android owns touch scrolling.",
+      "html": "<div class=\"ds-tools\" role=\"group\" aria-label=\"Drawing tools\"><button class=\"ds-button ds-tool ds-selected\" aria-pressed=\"true\">Select</button><button class=\"ds-button ds-tool\" aria-pressed=\"false\">Pen</button><button class=\"ds-button ds-tool\" aria-pressed=\"false\">Box</button><button class=\"ds-button ds-tool\" aria-pressed=\"false\">Square</button><button class=\"ds-button ds-tool\" aria-pressed=\"false\">Circle</button><button class=\"ds-button ds-tool\" aria-pressed=\"false\">Squircle</button><button class=\"ds-button ds-tool\" aria-pressed=\"false\">Text</button><button class=\"ds-button ds-tool\" aria-pressed=\"false\">Erase</button></div>",
+      "css": ".ds-button{font:14px system-ui,sans-serif;min-height:48px;min-width:48px;padding:4px 12px;border:0;border-radius:12px;cursor:pointer}.ds-button:focus-visible{outline:2px solid #246BCE;outline-offset:3px}.ds-button:active{filter:brightness(.92)}.ds-tools{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}.ds-tool{flex-shrink:0}.ds-tool,.ds-tool:hover{background:#DFE8F5;color:#252A31}.ds-selected,.ds-selected:hover{background:#246BCE;color:#FFFFFF}"
+    },
+    {
+      "name": "Sketch text entry",
+      "kind": "input",
+      "description": "Tonal editor with a 160dp native minimum height, 20sp text, and a 300-character limit. This browser textarea does not reproduce native autosizing, keyboard handwriting, or speech recognition.",
+      "html": "<textarea class=\"ds-editor\" aria-label=\"Text for your sketch\" maxlength=\"300\" placeholder=\"Type, write with your S Pen, or use the microphone\"></textarea>",
+      "css": ".ds-editor{font:20px system-ui,sans-serif;color:#252A31;background:#DFE8F5;min-height:160px;width:100%;border:0}.ds-editor:hover{background:#DFE8F5}.ds-editor:focus-visible{outline:2px solid #246BCE;outline-offset:2px}"
+    },
+    {
+      "name": "Preview progress",
+      "kind": "input",
+      "description": "Native Slider has a blue thumb and filled track, tonal remaining track, and a semantic description. Browser range geometry is illustrative and does not update the static caption.",
+      "html": "<label class=\"ds-slider\"><span>Preview 50%</span><input class=\"ds-range\" type=\"range\" min=\"0\" max=\"100\" value=\"50\" aria-label=\"Preview transition progress\"></label>",
+      "css": ".ds-slider{display:grid;gap:4px;font:12px system-ui,sans-serif;color:#526174}.ds-range{width:100%;accent-color:#246BCE}.ds-range:hover{accent-color:#246BCE}.ds-range:focus-visible{outline:2px solid #246BCE;outline-offset:2px}"
+    },
+    {
+      "name": "Pen only",
+      "kind": "input",
+      "description": "Android Switch uses blue when on and has a semantic description explaining finger rejection. The browser checkbox represents the setting; it is not a native switch replica.",
+      "html": "<label class=\"ds-pen\"><span>Pen only</span><input class=\"ds-pen-input\" type=\"checkbox\" aria-label=\"Pen only. Ignore fingers on the drawing canvas.\"></label>",
+      "css": ".ds-pen{display:inline-flex;gap:8px;align-items:center;font:12px system-ui,sans-serif;color:#526174}.ds-pen-input{accent-color:#246BCE}.ds-pen-input:hover{accent-color:#246BCE}.ds-pen-input:focus-visible{outline:2px solid #246BCE;outline-offset:2px}"
+    },
+    {
+      "name": "Paper and selected object",
+      "kind": "custom",
+      "description": "Illustrative SVG uses document coordinates, including the 16-unit dot grid, 4-unit selection inset, and 8-unit handle radius. Native canvas fit and its 24dp resize hit tolerance are defined in PenCanvas.",
+      "html": "<svg class=\"ds-paper\" viewBox=\"0 0 360 240\" role=\"img\" aria-label=\"White dotted paper with a selected box\"><defs><pattern id=\"ds-grid\" width=\"16\" height=\"16\" patternUnits=\"userSpaceOnUse\"><circle cx=\"0\" cy=\"0\" r=\"0.7\" fill=\"#DBE0E6\"/></pattern></defs><rect width=\"360\" height=\"240\" fill=\"#FFFFFF\"/><rect width=\"360\" height=\"240\" fill=\"url(#ds-grid)\"/><rect x=\"60\" y=\"64\" width=\"220\" height=\"100\" fill=\"none\" stroke=\"#252A31\" stroke-width=\"2.5\"/><rect x=\"56\" y=\"60\" width=\"228\" height=\"108\" fill=\"none\" stroke=\"#246BCE\" stroke-width=\"1\"/><circle cx=\"280\" cy=\"164\" r=\"8\" fill=\"#FFFFFF\" stroke=\"#246BCE\" stroke-width=\"2\"/><path d=\"M277 167L283 161\" stroke=\"#246BCE\" stroke-width=\"2\"/></svg>",
+      "css": ".ds-paper{display:block;width:100%;height:auto;background:#FFFFFF}",
+      "refersTo": "paper"
+    },
+    {
+      "name": "Trigger annotation",
+      "kind": "custom",
+      "description": "Renderer marker and rounded caption in document units. This static SVG shows a tap annotation; browser focus and motion are not native trigger behavior.",
+      "html": "<svg class=\"ds-trigger\" viewBox=\"0 0 240 110\" role=\"img\" aria-label=\"Tap: Open details\"><rect width=\"240\" height=\"110\" fill=\"#FFFFFF\"/><circle cx=\"120\" cy=\"30\" r=\"12\" fill=\"none\" stroke=\"#246BCE\" stroke-width=\"2\"/><circle cx=\"120\" cy=\"30\" r=\"4\" fill=\"#246BCE\"/><rect x=\"60\" y=\"54\" width=\"120\" height=\"28\" rx=\"6\" fill=\"#246BCE\"/><text x=\"68\" y=\"73\" fill=\"#FFFFFF\" font-family=\"sans-serif\" font-size=\"13\">Tap: Open details</text></svg>",
+      "css": ".ds-trigger{display:block;width:100%;height:auto;background:#FFFFFF}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A pen notebook",
+    "overview": "White paper holds the drawing. Blue marks the chosen tool, editing state, and animation trigger. The surrounding Android controls use slate tones and system text, with the canvas taking the space left by the controls.\n\nThis records the built MAUI interface. The notebook description comes from the implementation; it is not a separately approved concept. Native measurements below use dp for layout and sp for interface text. Canvas measurements use document units and scale with the paper. The sidecar's browser previews and synthesized color ramps are illustrative, not native specifications.",
+    "keyCharacteristics": [
+      "Monochrome artwork on white dotted paper.",
+      "Blue selection and primary actions.",
+      "Native controls with readable labels and horizontally scrolling tool rows.",
+      "A shared canvas for Draw and Animate."
+    ],
+    "rules": [
+      {
+        "name": "The Paper Rule",
+        "body": "Keep the document white and its artwork monochrome when the surrounding interface changes theme.",
+        "section": "colors"
+      },
+      {
+        "name": "The Native Text Rule",
+        "body": "Preserve system font scaling for interface text and keep canvas text sizing tied to the document.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do keep paper, ink, and grid colors stable across app themes.",
+      "Do preserve the minimum 48dp button targets and 8dp horizontal control gaps.",
+      "Do let tool rows scroll, hints wrap, and the title truncate as interface text grows.",
+      "Do pair selected colors with the existing semantic selected state.",
+      "Do keep motion, opacity, and trigger feedback in the shared document view."
+    ],
+    "donts": [
+      "Don't invert the artwork when applying dark theme to the controls.",
+      "Don't treat canvas document units as dp or sp.",
+      "Don't export selection handles or the editing grid.",
+      "Don't copy browser-preview focus styles or synthesized ramps into the native theme as established tokens."
+    ]
+  }
+}
