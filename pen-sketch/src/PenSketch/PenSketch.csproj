@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>PenSketch</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <ApplicationTitle>Pen Sketch</ApplicationTitle>
+    <ApplicationId>dev.danielreis.pensketch</ApplicationId>
+    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <SupportedOSPlatformVersion>26.0</SupportedOSPlatformVersion>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <MauiIcon Include="Resources/AppIcon/appicon.svg" Color="#246BCE" />
+    <MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#F1F4F8" BaseSize="128,128" />
+    <PackageReference Include="Microsoft.Maui.Controls" />
+    <PackageReference Include="SkiaSharp.Views.Maui.Controls" />
+    <ProjectReference Include="../PenSketch.Core/PenSketch.Core.csproj" />
+  </ItemGroup>
+</Project>

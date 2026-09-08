@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/PenSketch.AppHost/PenSketch.AppHost.csproj" />
+  <Project Path="src/PenSketch.Core/PenSketch.Core.csproj" />
+  <Project Path="src/PenSketch/PenSketch.csproj" />
+  <Project Path="tests/PenSketch.Tests/PenSketch.Tests.csproj" />
+</Solution>
