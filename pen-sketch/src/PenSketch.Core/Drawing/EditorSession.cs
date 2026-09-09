@@ -107,11 +107,12 @@ public sealed class EditorSession
     public void AddText(InkPoint point, string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
-        var height = Math.Min(Document.Height, TextLayout.Height(text.Trim(), 220));
+        var width = Math.Min(Document.Width, 220);
+        var height = Math.Min(Document.Height, TextLayout.Height(text.Trim(), width));
         var element = new SketchElement
         {
             Id = ElementId.New(), Kind = ElementKind.Text, Text = text.Trim(),
-            Bounds = new(Math.Clamp(point.X, 0, 120), Math.Clamp(point.Y, 0, Document.Height - height), 220, height)
+            Bounds = new(Math.Clamp(point.X, 0, Document.Width - width), Math.Clamp(point.Y, 0, Document.Height - height), width, height)
         };
         Selected = element.Id;
         Commit(Document with { Elements = Document.Elements.Append(element).ToArray() });

@@ -30,6 +30,10 @@ public sealed class MainPage : ContentPage
     private readonly Button play;
     private readonly Button trigger;
     private readonly Button export;
+    private readonly Button viewport;
+    private readonly TextSizeControl textSize = new();
+    private SketchElement? textBeforeResize;
+    private bool textSizeDragging;
     private readonly HorizontalStackLayout drawTools = new() { Spacing = 8 };
     private readonly VerticalStackLayout animationTools = new() { Spacing = 4 };
     private readonly HorizontalStackLayout selectionTools = new() { Spacing = 8 };
@@ -68,6 +72,11 @@ public sealed class MainPage : ContentPage
         animateMode = ActionButton("Animate", () => SetMode(true));
         var modes = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Star), ColumnSpacing = 8 };
         modes.Add(drawMode); modes.Add(animateMode, 1);
+        viewport = ActionButton("360 × 640", ViewportAsync);
+        var viewportRow = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto, GridLength.Auto), ColumnSpacing = 8 };
+        viewportRow.Add(viewport);
+        viewportRow.Add(ActionButton("Rotate", () => ChangeViewport(session.Document.Height, session.Document.Width)), 1);
+        viewportRow.Add(ActionButton("Fit", () => canvas.ResetView()), 2);
         foreach (var (tool, name) in new[] { (DrawingTool.Select, "Select"), (DrawingTool.Pen, "Pen"), (DrawingTool.Rectangle, "Box"), (DrawingTool.Square, "Square"), (DrawingTool.Ellipse, "Circle"), (DrawingTool.Squircle, "Squircle"), (DrawingTool.Text, "Text"), (DrawingTool.Eraser, "Erase") })
         {
             var button = ActionButton(name, () => { StopPlayback(); session.Tool = tool; Refresh(); });
@@ -140,14 +149,56 @@ public sealed class MainPage : ContentPage
             if (!opacityDragging) { Refresh(); Save(); }
         };
         SemanticProperties.SetDescription(opacity, "Selected object opacity");
+        textSize.Slider.DragStarted += (_, _) =>
+        {
+            session.Cancel(); textBeforeResize = SelectedElement(); textSizeDragging = true;
+        };
+        textSize.Slider.DragCompleted += (_, _) =>
+        {
+            textSizeDragging = false; textBeforeResize = null; session.CommitPreview(); Refresh(); Save();
+        };
+        textSize.Slider.ValueChanged += (_, e) =>
+        {
+            if (updating || canvas.IsPlaying || (textBeforeResize ?? SelectedElement()) is not { Kind: ElementKind.Text } element) return;
+            var resized = TextLayout.Resize(element, (float)Math.Round(e.NewValue), session.Document.Width, session.Document.Height);
+            var document = session.Document.SetElement(resized, session.EndState);
+            if (textSizeDragging) session.Preview(document);
+            else { session.Commit(document); Refresh(); Save(); }
+        };
         var controls = new VerticalStackLayout { Spacing = 4, Children = { drawScroll, animationTools } };
-        var top = new VerticalStackLayout { Spacing = 6, Children = { header, modes } };
+        var top = new VerticalStackLayout { Spacing = 6, Children = { header, modes, viewportRow } };
         var bottom = new VerticalStackLayout { Spacing = 4, Children =
         {
             opacityRow, stateRow, new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = selectionTools, HorizontalScrollBarVisibility = ScrollBarVisibility.Never }, hint
         } };
         var root = new Grid { Padding = new Thickness(12, 6, 12, 8), RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Star, GridLength.Auto), RowSpacing = 8 };
-        root.Add(top); root.Add(controls, 0, 1); root.Add(canvas, 0, 2); root.Add(bottom, 0, 3);
+        var workspace = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto), ColumnSpacing = 8 };
+        workspace.Add(canvas); workspace.Add(textSize, 1);
+        root.Add(top); root.Add(controls, 0, 1); root.Add(workspace, 0, 2); root.Add(bottom, 0, 3);
+        var sidePanel = new VerticalStackLayout { Spacing = 8 };
+        var sideScroll = new ScrollView { Content = sidePanel };
+        var wide = false;
+        root.SizeChanged += (_, _) =>
+        {
+            var nextWide = root.Width >= 640;
+            if (nextWide == wide) return;
+            wide = nextWide;
+            sidePanel.Children.Clear(); root.Children.Clear();
+            if (wide)
+            {
+                root.RowDefinitions = Rows(GridLength.Star);
+                root.ColumnDefinitions = Columns(new GridLength(320), GridLength.Star);
+                root.ColumnSpacing = 12;
+                sidePanel.Add(top); sidePanel.Add(controls); sidePanel.Add(bottom);
+                root.Add(sideScroll); root.Add(workspace, 1);
+            }
+            else
+            {
+                root.RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Star, GridLength.Auto);
+                root.ColumnDefinitions = Columns(GridLength.Star);
+                root.Add(top); root.Add(controls, 0, 1); root.Add(workspace, 0, 2); root.Add(bottom, 0, 3);
+            }
+        };
         Content = root;
         session.Changed += () => { if (!updating) RefreshSelection(); };
         session.TextRequested += point => MainThread.BeginInvokeOnMainThread(async () => await EnterTextAsync(point));
@@ -216,10 +267,12 @@ public sealed class MainPage : ContentPage
         trigger.Text = session.Tool == DrawingTool.Trigger ? "Tap canvas…" : session.Document.Trigger is null ? "Set trigger" : "Edit trigger";
         title.Text = session.Document.Name == "Untitled sketch" ? "Pen Sketch" : session.Document.Name;
         title.LineBreakMode = LineBreakMode.TailTruncation;
+        viewport.Text = $"{session.Document.Width} × {session.Document.Height}";
+        SemanticProperties.SetDescription(viewport, "Canvas viewport: " + CanvasViewport.Describe(session.Document.Width, session.Document.Height));
         duration.SelectedIndex = Array.IndexOf(new[] { 300, 600, 1000, 1500, 2000, 3000 }, session.Document.DurationMs);
         hint.Text = animate ? session.EndState ? "End state · drag, resize, or fade a selected object." : "Start state · set a trigger, then edit the End state."
             : session.Tool == DrawingTool.Pen ? "Draw freely. Pen pressure controls the stroke width."
-            : session.Tool == DrawingTool.Select ? "Select an object. Drag to move; use its corner to resize."
+            : session.Tool == DrawingTool.Select ? "Drag to move; corner to resize. Two fingers zoom/pan."
             : session.Tool == DrawingTool.Text ? "Tap the canvas to add text by keyboard, pen, or voice."
             : session.Tool == DrawingTool.Eraser ? "Drag over objects or ink strokes to erase them."
             : "Drag on the canvas to draw a shape.";
@@ -239,6 +292,13 @@ public sealed class MainPage : ContentPage
     private void RefreshSelection()
     {
         var element = SelectedElement();
+        if (!textSizeDragging)
+        {
+            var wasUpdating = updating; updating = true;
+            textSize.SetSelection(element?.Kind == ElementKind.Text && !canvas.IsPlaying
+                ? TextLayout.Fit(element.Text, element.Bounds, element.FontSize).FontSize : null);
+            updating = wasUpdating;
+        }
         opacityRow.IsVisible = animate;
         opacity.IsEnabled = element is not null && !canvas.IsPlaying;
         if (!opacityDragging && element is not null)
@@ -264,7 +324,7 @@ public sealed class MainPage : ContentPage
         {
             if (string.IsNullOrWhiteSpace(editor.Text)) return;
             if (element is null) session.AddText(point, editor.Text);
-            else session.Commit(session.Document.SetElement(element with { Text = editor.Text.Trim() }, false));
+            else session.Commit(session.Document.SetElement(TextLayout.Resize(element with { Text = editor.Text.Trim() }, element.FontSize, session.Document.Width, session.Document.Height), false));
             await Navigation.PopModalAsync(); Refresh(); Save();
         }, true);
         var mic = ActionButton("Microphone", async () =>
@@ -285,6 +345,18 @@ public sealed class MainPage : ContentPage
         editor.Focus();
     }
     private Task EditSelectedTextAsync() => SelectedElement() is { Kind: ElementKind.Text } element ? EnterTextAsync(default, element) : Task.CompletedTask;
+    private async Task ViewportAsync()
+    {
+        var choice = await DisplayActionSheetAsync("Canvas viewport", "Cancel", null, CanvasViewport.Presets.Select(p => p.Label).ToArray());
+        if (CanvasViewport.Presets.FirstOrDefault(p => p.Label == choice) is { } preset) ChangeViewport(preset.Width, preset.Height);
+    }
+    private void ChangeViewport(int width, int height)
+    {
+        StopPlayback(); session.Cancel();
+        session.Commit(CanvasViewport.Resize(session.Document, width, height));
+        canvas.ResetView(); Refresh(); Save();
+        hint.Text = "Artwork fitted. Two fingers zoom/pan; Fit shows the whole canvas.";
+    }
     private async Task TriggerAsync()
     {
         StopPlayback();
@@ -364,7 +436,9 @@ public sealed class MainPage : ContentPage
         else if (choice is "New sketch" or "Load example")
         {
             if (session.Document.Elements.Length > 0 && !await DisplayAlertAsync("Replace this sketch?", "Export it first if you need a copy. You can undo this replacement until the app closes.", "Replace", "Cancel")) return;
-            busy = false; saveBlocked = false; session.Commit(choice == "New sketch" ? new() : ExampleSketch.Create()); session.Selected = null; SetMode(false);
+            busy = false; saveBlocked = false;
+            session.Commit(choice == "New sketch" ? new() { Width = session.Document.Width, Height = session.Document.Height } : ExampleSketch.Create());
+            session.Selected = null; canvas.ResetView(); SetMode(false);
         }
         else if (choice == "How to send to PC")
             await DisplayAlertAsync("Send a sketch to your PC", "Tap Export, choose PNG or GIF, then choose Quick Share in Android's share sheet. Your PC must be available in your sharing app. You can also send through an installed cloud drive or messaging app. Copy description for LLM adds the exact shape and motion details to your clipboard.", "OK");

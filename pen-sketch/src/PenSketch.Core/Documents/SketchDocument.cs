@@ -9,6 +9,7 @@ public sealed record SketchDocument
     public string Name { get; init; } = "Untitled sketch";
     public int Width { get; init; } = 360;
     public int Height { get; init; } = 640;
+    public ViewportReference? ReferenceViewport { get; init; }
     public SketchElement[] Elements { get; init; } = [];
     public ElementPose[] EndPoses { get; init; } = [];
     public AnimationTrigger? Trigger { get; init; }
@@ -20,7 +21,7 @@ public sealed record SketchDocument
     public SketchDocument SetElement(SketchElement element, bool endState)
     {
         if (!endState) return this with { Elements = Elements.Select(e => e.Id == element.Id ? element : e).ToArray() };
-        var pose = new ElementPose { Id = element.Id, Bounds = element.Bounds, Opacity = element.Opacity };
+        var pose = new ElementPose { Id = element.Id, Bounds = element.Bounds, Opacity = element.Opacity, FontSize = element.FontSize };
         return this with { EndPoses = EndPoses.Where(p => p.Id != element.Id).Append(pose).ToArray() };
     }
 

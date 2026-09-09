@@ -9,7 +9,7 @@ public static class SketchRenderer
     public static readonly SKColor Ink = SKColor.Parse("#252A31");
     public static readonly SKColor Accent = SKColor.Parse("#246BCE");
     public static void Draw(SKCanvas canvas, SketchDocument document, float progress = 0, bool grid = false,
-        ElementId? selected = null, bool showTrigger = false, float triggerPulse = 0)
+        ElementId? selected = null, bool showTrigger = false, float triggerPulse = 0, float selectionScale = 1)
     {
         canvas.Clear(SKColors.White);
         if (grid)
@@ -22,9 +22,9 @@ public static class SketchRenderer
         if (selected is { } id)
         {
             var element = document.At(progress).FirstOrDefault(e => e.Id == id);
-            if (element is not null) DrawSelection(canvas, element.Bounds);
+            if (element is not null) DrawSelection(canvas, element.Bounds, selectionScale);
         }
-        if (showTrigger && document.Trigger is { } trigger) DrawTrigger(canvas, trigger, triggerPulse, document.Width);
+        if (showTrigger && document.Trigger is { } trigger) DrawTrigger(canvas, trigger, triggerPulse, document.Width, document.Height);
     }
     private static void DrawElement(SKCanvas canvas, SketchElement element)
     {
@@ -41,7 +41,7 @@ public static class SketchRenderer
                 break;
             case ElementKind.Text:
                 paint.Style = SKPaintStyle.Fill;
-                var layout = TextLayout.Fit(element.Text, b);
+                var layout = TextLayout.Fit(element.Text, b, element.FontSize);
                 using (var font = new SKFont(SKTypeface.Default, layout.FontSize))
                 {
                     canvas.Save();
@@ -83,17 +83,17 @@ public static class SketchRenderer
         path.Close();
         return path.Detach();
     }
-    private static void DrawSelection(SKCanvas canvas, Bounds b)
+    private static void DrawSelection(SKCanvas canvas, Bounds b, float scale)
     {
-        using var stroke = new SKPaint { Color = Accent, Style = SKPaintStyle.Stroke, StrokeWidth = 1, IsAntialias = true };
-        canvas.DrawRect(new SKRect(b.X - 4, b.Y - 4, b.Right + 4, b.Bottom + 4), stroke);
+        using var stroke = new SKPaint { Color = Accent, Style = SKPaintStyle.Stroke, StrokeWidth = scale, IsAntialias = true };
+        canvas.DrawRect(new SKRect(b.X - 4 * scale, b.Y - 4 * scale, b.Right + 4 * scale, b.Bottom + 4 * scale), stroke);
         using var fill = new SKPaint { Color = SKColors.White, IsAntialias = true };
-        canvas.DrawCircle(b.Right, b.Bottom, 8, fill);
-        stroke.StrokeWidth = 2;
-        canvas.DrawCircle(b.Right, b.Bottom, 8, stroke);
-        canvas.DrawLine(b.Right - 3, b.Bottom + 3, b.Right + 3, b.Bottom - 3, stroke);
+        canvas.DrawCircle(b.Right, b.Bottom, 8 * scale, fill);
+        stroke.StrokeWidth = 2 * scale;
+        canvas.DrawCircle(b.Right, b.Bottom, 8 * scale, stroke);
+        canvas.DrawLine(b.Right - 3 * scale, b.Bottom + 3 * scale, b.Right + 3 * scale, b.Bottom - 3 * scale, stroke);
     }
-    private static void DrawTrigger(SKCanvas canvas, AnimationTrigger trigger, float pulse, int width)
+    private static void DrawTrigger(SKCanvas canvas, AnimationTrigger trigger, float pulse, int width, int height)
     {
         using var paint = new SKPaint { Color = Accent, IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 2 };
         canvas.DrawCircle(trigger.X, trigger.Y, 12 + pulse * 14, paint);
@@ -103,7 +103,7 @@ public static class SketchRenderer
         using var font = new SKFont(SKTypeface.Default, 13);
         var labelWidth = Math.Min(width - 16, font.MeasureText(label) + 16);
         var x = Math.Clamp(trigger.X - labelWidth / 2, 8, width - labelWidth - 8);
-        var y = trigger.Y > 570 ? trigger.Y - 44 : trigger.Y + 24;
+        var y = Math.Clamp(trigger.Y > height - 60 ? trigger.Y - 44 : trigger.Y + 24, 8, height - 36);
         canvas.DrawRoundRect(new SKRect(x, y, x + labelWidth, y + 28), 6, 6, paint);
         paint.Color = SKColors.White;
         canvas.Save();

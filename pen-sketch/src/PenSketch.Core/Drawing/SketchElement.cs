@@ -24,6 +24,7 @@ public sealed record SketchElement
     public required Bounds Bounds { get; init; }
     public float Opacity { get; init; } = 1;
     public string Text { get; init; } = "";
+    public float FontSize { get; init; } = TextLayout.DefaultFontSize;
     public InkPoint[] Points { get; init; } = [];
     public float StrokeWidth { get; init; } = 2.5f;
 }
