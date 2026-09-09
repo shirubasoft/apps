@@ -2,6 +2,12 @@ using PenSketch.Core.Drawing;
 
 namespace PenSketch.Core.Documents;
 
+public sealed record ViewportReference
+{
+    public required int Width { get; init; }
+    public required int Height { get; init; }
+}
+
 public sealed record CanvasViewport
 {
     public required string Name { get; init; }
@@ -26,13 +32,17 @@ public sealed record CanvasViewport
     {
         if (!IsSupported(width, height)) throw new ArgumentOutOfRangeException(nameof(width), "Choose a supported canvas viewport.");
         if (width == document.Width && height == document.Height) return document;
-        var scale = Math.Min(width / (float)document.Width, height / (float)document.Height);
+        var reference = document.ReferenceViewport ?? new ViewportReference { Width = document.Width, Height = document.Height };
+        var currentScale = Math.Min(document.Width / (float)reference.Width, document.Height / (float)reference.Height);
+        var nextScale = Math.Min(width / (float)reference.Width, height / (float)reference.Height);
+        var scale = nextScale / currentScale;
         var dx = (width - document.Width * scale) / 2;
         var dy = (height - document.Height * scale) / 2;
         Bounds Transform(Bounds bounds) => new(bounds.X * scale + dx, bounds.Y * scale + dy, bounds.Width * scale, bounds.Height * scale);
         return document with
         {
             Width = width, Height = height,
+            ReferenceViewport = reference,
             Elements = document.Elements.Select(e => e with
             {
                 Bounds = Transform(e.Bounds), FontSize = e.FontSize * scale, StrokeWidth = e.StrokeWidth * scale

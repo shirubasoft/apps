@@ -45,6 +45,7 @@ public class ViewportTests
             Assert.Equal(changed.Elements.Select(e => e.Bounds), loaded.Elements.Select(e => e.Bounds));
             Assert.Equal(changed.Elements.Select(e => e.FontSize), loaded.Elements.Select(e => e.FontSize));
             Assert.Equal(changed.EndPoses, loaded.EndPoses);
+            Assert.Equal(changed.ReferenceViewport, loaded.ReferenceViewport);
         }
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }
@@ -73,6 +74,57 @@ public class ViewportTests
         editor.History.Redo(); Assert.Equal(1920, editor.Document.Width);
         Assert.Same(editor.Document, CanvasViewport.Resize(editor.Document, 1920, 1080));
         Assert.Throws<ArgumentOutOfRangeException>(() => CanvasViewport.Resize(before, 0, 100000));
+    }
+
+    [Theory]
+    [MemberData(nameof(Viewports))]
+    public void RepeatedViewportRoundTripsPreserveArtworkPosesAndTrigger(int width, int height)
+    {
+        var original = ExampleSketch.Create();
+        var roundTrip = original;
+        for (var i = 0; i < 5; i++)
+        {
+            roundTrip = CanvasViewport.Resize(roundTrip, width, height);
+            roundTrip = CanvasViewport.Resize(roundTrip, original.Width, original.Height);
+        }
+        foreach (var progress in new[] { 0f, 0.5f, 1f })
+            foreach (var (before, after) in original.At(progress).Zip(roundTrip.At(progress)))
+                AssertGeometry(before, after);
+        Assert.Equal(original.Trigger!.X, roundTrip.Trigger!.X, 3);
+        Assert.Equal(original.Trigger.Y, roundTrip.Trigger.Y, 3);
+    }
+
+    [Theory]
+    [InlineData(640, 360)]
+    [InlineData(1920, 1080)]
+    public async Task ViewportRoundTripPreservesInterveningEditsAndRestart(int width, int height)
+    {
+        var editor = new EditorSession();
+        editor.History.Reset(CanvasViewport.Resize(ExampleSketch.Create(), width, height));
+        editor.AddText(new(width / 2f, height / 2f), "Added after changing viewport");
+        var added = editor.Document.Elements[^1];
+        editor.Commit(editor.Document.SetElement(added with { Bounds = added.Bounds.Move(10, 8), FontSize = 40 }, true));
+        var edited = editor.Document;
+        var directory = Path.Combine(Path.GetTempPath(), "pen-sketch-tests", Guid.NewGuid().ToString());
+        try
+        {
+            var store = new DocumentStore(Path.Combine(directory, "sketch.json"));
+            await store.SaveAsync(CanvasViewport.Resize(edited, 360, 640));
+            var restored = CanvasViewport.Resize(await store.LoadAsync(), width, height);
+            foreach (var progress in new[] { 0f, 1f })
+                foreach (var (before, after) in edited.At(progress).Zip(restored.At(progress)))
+                    AssertGeometry(before, after);
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+    }
+
+    private static void AssertGeometry(SketchElement before, SketchElement after)
+    {
+        Assert.Equal(before.Id, after.Id);
+        Assert.Equal(before.Bounds.X, after.Bounds.X, 3); Assert.Equal(before.Bounds.Y, after.Bounds.Y, 3);
+        Assert.Equal(before.Bounds.Width, after.Bounds.Width, 3); Assert.Equal(before.Bounds.Height, after.Bounds.Height, 3);
+        Assert.Equal(before.FontSize, after.FontSize, 3); Assert.Equal(before.StrokeWidth, after.StrokeWidth, 3);
+        Assert.Equal(before.Opacity, after.Opacity); Assert.Equal(before.Text, after.Text); Assert.Equal(before.Points, after.Points);
     }
 
     [Theory]

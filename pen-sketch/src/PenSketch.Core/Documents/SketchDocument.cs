@@ -9,6 +9,7 @@ public sealed record SketchDocument
     public string Name { get; init; } = "Untitled sketch";
     public int Width { get; init; } = 360;
     public int Height { get; init; } = 640;
+    public ViewportReference? ReferenceViewport { get; init; }
     public SketchElement[] Elements { get; init; } = [];
     public ElementPose[] EndPoses { get; init; } = [];
     public AnimationTrigger? Trigger { get; init; }

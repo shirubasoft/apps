@@ -25,6 +25,8 @@ public sealed class DocumentStore(string path)
             ?? throw new InvalidDataException("The saved sketch is empty.");
         if (document.Version != 1 || !CanvasViewport.IsSupported(document.Width, document.Height) || document.Elements is null || document.EndPoses is null)
             throw new InvalidDataException("This sketch uses an unsupported format.");
+        if (document.ReferenceViewport is { } reference && !CanvasViewport.IsSupported(reference.Width, reference.Height))
+            throw new InvalidDataException("This sketch uses an unsupported reference viewport.");
         return document;
     }
 }
