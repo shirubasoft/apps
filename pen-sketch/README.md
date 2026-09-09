@@ -6,15 +6,29 @@ An Android drawing app for explaining UI ideas and motion to an LLM. Draw with a
 
 Install `artifacts/PenSketch.apk` on Android 8 or later. In the app, **Sketch → Load example** opens an editable expanding-card animation.
 
+Choose the dimensions button below Draw and Animate to set the canvas viewport. **Rotate** swaps its width and height. Existing artwork, text, and animation poses scale together and stay centered without stretching. Returning to a viewport restores its scale and position, including after saving or editing. **Undo** restores the previous viewport. A new sketch keeps the selected viewport.
+
+| Viewport | Canvas pixels |
+| --- | --- |
+| Mobile | 360 × 640 |
+| Large mobile | 412 × 915 |
+| Tablet | 768 × 1024 |
+| Laptop | 1366 × 768 |
+| Desktop | 1920 × 1080 |
+
+Use two fingers to zoom and pan, including with **Pen only** enabled. **Fit** returns to the whole canvas. Zoom changes the editing view; exports retain the document's proportions.
+
+Viewports scale relative to the sketch's starting canvas. Objects added in the extra space of a wider viewport may fall outside a narrower canvas; switching back restores them. In landscape phone windows, the controls scroll beside the canvas.
+
 1. In **Draw**, choose a box, square, circle, or squircle and drag on the paper. **Pen** records pressure-sensitive strokes. Scroll the tool row to reach **Text** and **Erase**.
 2. Choose **Select**, tap an object, and drag it to move. Its lower-right handle resizes it. **Copy**, **Delete**, **Undo**, and **Redo** apply to the current sketch.
-3. **Text** opens a text field with a microphone action. An installed handwriting keyboard can turn S Pen writing into editable text. Handwritten ink also works with the Pen tool.
-4. In **Animate**, choose **Set trigger**, describe the tap or text input, and tap the canvas to place its marker. Choose **End**, then move, resize, or change an object's opacity. **Start** preserves the initial arrangement; **Play** previews the transition.
+3. **Text** opens a text field with a microphone action. An installed handwriting keyboard can turn S Pen writing into editable text. Handwritten ink also works with the Pen tool. Select a text object and drag the vertical **Text size** slider up to enlarge it. The value is in canvas pixels. The box grows to keep the label visible, up to the canvas limits. A slider drag is one Undo step.
+4. In **Animate**, choose **Set trigger**, describe the tap or text input, and tap the canvas to place its marker. Choose **End**, then move, resize, change text size, or change an object's opacity. **Start** preserves the initial arrangement; **Play** previews the transition.
 5. Choose **Export → PNG image** or **Animated GIF**. Select Quick Share or another installed sharing app to transfer the file to your PC. **Copy description for LLM** copies shape geometry and the transition instructions.
 
 Enable **Pen only** to ignore fingers on the canvas while still using touch for the controls. A stylus eraser tip or primary barrel button temporarily erases objects and whole ink strokes. Android cancellation events discard interrupted gestures.
 
-The app saves one active sketch on the phone. Export before replacing it. Undo can recover replacement while the app remains open. The drawing canvas is 360 × 640 units. PNG exports are 720 × 1280 pixels. GIFs are 360 × 640 at 20 frames per second, with a 700 ms trigger hold and a 600 ms final hold. Animation uses one start-to-end transition, and the trigger marker remains visible in the GIF.
+The app saves one active sketch on the phone, including viewport and text sizes. Export before replacing it. Undo can recover replacement while the app remains open. PNG exports use twice the canvas dimensions. GIFs keep the aspect ratio and use at most 960 pixels on their longest side to bound phone memory use. They run at 20 frames per second, with a 700 ms trigger hold and a 600 ms final hold. Animation uses one start-to-end transition, and the trigger marker remains visible in the GIF.
 
 ## Build and run
 
@@ -45,7 +59,7 @@ aspire stop --non-interactive
 
 ## Verification
 
-`./test.sh` runs deterministic tests for drawing gestures, pointer ownership, cancellation, history, persistence, interpolation, and decoded PNG/GIF output. The release APK has been exercised in an Android 14 phone emulator, including drawing, playback, persistence after restarting, and opening the GIF share sheet.
+`./test.sh` runs deterministic tests for drawing gestures, pointer ownership, cancellation, history, persistence, interpolation, viewport round trips, text sizing, and decoded PNG/GIF output. The release APK has been exercised in an Android 14 phone emulator for text-size dragging and Undo, preset changes and rotation, pinch zoom, portrait and landscape layouts, enlarged system text, and a three-second desktop GIF export through Android sharing.
 
 Physical Galaxy S Pen latency, pressure calibration, handwriting keyboard integration, voice recognition, and a completed Quick Share transfer require a Galaxy device and receiving PC. The emulator has no speech-recognition provider. The app shows a recovery message when dictation is unavailable.
 

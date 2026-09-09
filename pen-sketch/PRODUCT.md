@@ -8,7 +8,7 @@ android
 
 ## Stack
 
-Working assumption: .NET MAUI for Android, following the repository stack. Native stylus events feed a Skia canvas. The user has been offered a stack choice; no reply has arrived.
+.NET MAUI for Android, following the repository stack. Native stylus events feed a Skia canvas.
 
 ## Users
 
@@ -21,6 +21,8 @@ Draw shapes and text, show how they move or change after a visible trigger, and 
 ## Capabilities and constraints
 
 Draw and Animate are the main views. Shapes include rectangles, circles, and squircles. Shapes can move, resize, expand, shrink, and fade. Text can be typed, handwritten, or dictated. Animations identify a tap location or text input as their trigger. Color editing is outside the current request.
+
+Sketch canvases support mobile, tablet, laptop, and desktop viewports in either orientation. Two-finger navigation supports detail work on a phone. A vertical slider adjusts selected text size, including animation end states.
 
 ## Working assumptions
 

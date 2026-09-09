@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-08T22:00:53.015594Z",
+  "generatedAt": "2026-09-09T01:00:47.540514Z",
   "title": "Design System: Pen Sketch",
   "extensions": {
     "colorMeta": {
@@ -184,7 +184,7 @@
       },
       "label": {
         "displayName": "Status and hints",
-        "purpose": "Status, wrapped hints, opacity, and preview percentages."
+        "purpose": "Status, wrapped hints, opacity, preview percentages, and text-size captions."
       }
     },
     "shadows": [],
@@ -192,7 +192,7 @@
       {
         "name": "transition-easing",
         "value": "t * t * (3 - 2 * t)",
-        "purpose": "Smoothstep interpolation of object position, size, and opacity; t is clamped from 0 to 1."
+        "purpose": "Smoothstep interpolation of object position, size, opacity, and font size; t is clamped from 0 to 1."
       },
       {
         "name": "trigger-hold",
@@ -210,7 +210,13 @@
         "purpose": "Duration picker choices; the document default is 1000ms."
       }
     ],
-    "breakpoints": []
+    "breakpoints": [
+      {
+        "name": "side-controls",
+        "value": "640dp",
+        "purpose": "At this root width, a 320dp scrolling control panel sits to the left of the canvas workspace with a 12dp gap. The workspace retains its 60dp text-size rail."
+      }
+    ]
   },
   "components": [
     {
@@ -245,6 +251,13 @@
       "css": ".ds-button{font:14px system-ui,sans-serif;min-height:48px;min-width:48px;padding:4px 12px;border:0;border-radius:12px;cursor:pointer}.ds-button:focus-visible{outline:2px solid #246BCE;outline-offset:3px}.ds-button:active{filter:brightness(.92)}.ds-modes{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ds-mode,.ds-mode:hover{background:#DFE8F5;color:#252A31}.ds-selected,.ds-selected:hover{background:#246BCE;color:white}"
     },
     {
+      "name": "Canvas viewport actions",
+      "kind": "custom",
+      "description": "Below the mode buttons, dimensions open a native sheet with named presets, Rotate swaps width and height, and Fit restores the whole-paper view. This browser preview shows the row without implementing its actions; 1 CSS px represents 1dp.",
+      "html": "<div class=\"ds-viewport-row\" role=\"group\" aria-label=\"Canvas viewport\"><button class=\"ds-viewport-button\" aria-label=\"Canvas viewport: Mobile, 360 by 640\">360 × 640</button><button class=\"ds-viewport-button\">Rotate</button><button class=\"ds-viewport-button\">Fit</button></div>",
+      "css": ".ds-viewport-button{font:14px system-ui,sans-serif;min-height:48px;min-width:48px;padding:4px 12px;border:0;border-radius:12px;cursor:pointer;background:#DFE8F5;color:#252A31}.ds-viewport-button:hover{background:#DFE8F5}.ds-viewport-button:focus-visible{outline:2px solid #246BCE;outline-offset:3px}.ds-viewport-button:active{filter:brightness(.92)}.ds-viewport-row{display:grid;grid-template-columns:1fr auto auto;gap:8px}"
+    },
+    {
       "name": "Drawing tools",
       "kind": "custom",
       "description": "Scrollable labeled tools preserve their width. This static browser preview shows Select selected; Android owns touch scrolling.",
@@ -266,16 +279,24 @@
       "css": ".ds-slider{display:grid;gap:4px;font:12px system-ui,sans-serif;color:#526174}.ds-range{width:100%;accent-color:#246BCE}.ds-range:hover{accent-color:#246BCE}.ds-range:focus-visible{outline:2px solid #246BCE;outline-offset:2px}"
     },
     {
+      "name": "Text-size rail",
+      "kind": "input",
+      "refersTo": "text-size-rail",
+      "description": "Persistent 60dp rail beside the canvas. The native rotated Slider enlarges selected text upward and commits one Undo step per drag. A disabled control shows Select text. This browser range illustrates placement and states; its caption is static and it does not reproduce Android range semantics or text fitting.",
+      "html": "<div class=\"ds-size-examples\"><label class=\"ds-size-rail\"><span>Text size</span><input class=\"ds-size-range\" type=\"range\" min=\"1\" max=\"256\" value=\"33\" aria-label=\"Selected text size in canvas pixels. Slide up to enlarge.\"><span>33 px</span></label><label class=\"ds-size-rail\"><span>Text size</span><input class=\"ds-size-range\" type=\"range\" min=\"1\" max=\"256\" value=\"20\" disabled aria-label=\"Select text to change its size\"><span>Select<br>text</span></label></div>",
+      "css": ".ds-size-examples{display:flex;gap:24px;background:#F1F4F8;padding:8px}.ds-size-rail{display:grid;grid-template-rows:auto 1fr auto;gap:4px;width:60px;min-height:280px;font:12px system-ui,sans-serif;color:#526174;text-align:center}.ds-size-range{writing-mode:vertical-lr;direction:rtl;justify-self:center;width:48px;height:100%;min-height:96px;margin:0;accent-color:#246BCE}.ds-size-range:hover{accent-color:#246BCE}.ds-size-range:focus-visible{outline:2px solid #246BCE;outline-offset:2px}.ds-size-range:active{accent-color:#246BCE}.ds-size-range:disabled{opacity:.45}"
+    },
+    {
       "name": "Pen only",
       "kind": "input",
-      "description": "Android Switch uses blue when on and has a semantic description explaining finger rejection. The browser checkbox represents the setting; it is not a native switch replica.",
+      "description": "Android Switch uses blue when on and has a semantic description explaining finger rejection for drawing. Two-finger navigation remains available. The browser checkbox represents the setting; it is not a native switch replica.",
       "html": "<label class=\"ds-pen\"><span>Pen only</span><input class=\"ds-pen-input\" type=\"checkbox\" aria-label=\"Pen only. Ignore fingers on the drawing canvas.\"></label>",
       "css": ".ds-pen{display:inline-flex;gap:8px;align-items:center;font:12px system-ui,sans-serif;color:#526174}.ds-pen-input{accent-color:#246BCE}.ds-pen-input:hover{accent-color:#246BCE}.ds-pen-input:focus-visible{outline:2px solid #246BCE;outline-offset:2px}"
     },
     {
       "name": "Paper and selected object",
       "kind": "custom",
-      "description": "Illustrative SVG uses document coordinates, including the 16-unit dot grid, 4-unit selection inset, and 8-unit handle radius. Native canvas fit and its 24dp resize hit tolerance are defined in PenCanvas.",
+      "description": "Illustrative SVG at one document unit per dp. Grid dots are spaced 16 document units apart. The native 4dp selection inset, 8dp handle radius, and 24dp resize hit tolerance remain stable on screen through fit and zoom; this static SVG does not simulate that compensation.",
       "html": "<svg class=\"ds-paper\" viewBox=\"0 0 360 240\" role=\"img\" aria-label=\"White dotted paper with a selected box\"><defs><pattern id=\"ds-grid\" width=\"16\" height=\"16\" patternUnits=\"userSpaceOnUse\"><circle cx=\"0\" cy=\"0\" r=\"0.7\" fill=\"#DBE0E6\"/></pattern></defs><rect width=\"360\" height=\"240\" fill=\"#FFFFFF\"/><rect width=\"360\" height=\"240\" fill=\"url(#ds-grid)\"/><rect x=\"60\" y=\"64\" width=\"220\" height=\"100\" fill=\"none\" stroke=\"#252A31\" stroke-width=\"2.5\"/><rect x=\"56\" y=\"60\" width=\"228\" height=\"108\" fill=\"none\" stroke=\"#246BCE\" stroke-width=\"1\"/><circle cx=\"280\" cy=\"164\" r=\"8\" fill=\"#FFFFFF\" stroke=\"#246BCE\" stroke-width=\"2\"/><path d=\"M277 167L283 161\" stroke=\"#246BCE\" stroke-width=\"2\"/></svg>",
       "css": ".ds-paper{display:block;width:100%;height:auto;background:#FFFFFF}",
       "refersTo": "paper"
@@ -290,12 +311,12 @@
   ],
   "narrative": {
     "northStar": "A pen notebook",
-    "overview": "White paper holds the drawing. Blue marks the chosen tool, editing state, and animation trigger. The surrounding Android controls use slate tones and system text, with the canvas taking the space left by the controls.\n\nThis records the built MAUI interface. The notebook description comes from the implementation; it is not a separately approved concept. Native measurements below use dp for layout and sp for interface text. Canvas measurements use document units and scale with the paper. The sidecar's browser previews and synthesized color ramps are illustrative, not native specifications.",
+    "overview": "White paper holds the drawing. Blue marks the chosen tool, editing state, and animation trigger. The surrounding Android controls use slate tones and system text. The canvas takes the space left by the controls, with a persistent text-size rail at its right edge.\n\nThis records the built MAUI interface. The notebook description comes from the implementation; it is not a separately approved concept. Native measurements below use dp for layout and sp for interface text. Canvas measurements use document units, labeled px in the text-size control, and scale with the paper. Selection affordances retain their screen size. The sidecar's browser previews and synthesized color ramps are illustrative, not native specifications.",
     "keyCharacteristics": [
       "Monochrome artwork on white dotted paper.",
       "Blue selection and primary actions.",
       "Native controls with readable labels and horizontally scrolling tool rows.",
-      "A shared canvas for Draw and Animate."
+      "A shared, zoomable canvas for Draw and Animate, with named viewport presets."
     ],
     "rules": [
       {
@@ -313,6 +334,8 @@
       "Do keep paper, ink, and grid colors stable across app themes.",
       "Do preserve the minimum 48dp button targets and 8dp horizontal control gaps.",
       "Do let tool rows scroll, hints wrap, and the title truncate as interface text grows.",
+      "Do keep the text-size rail visible and selection affordances stable while the paper zooms.",
+      "Do use the scrolling control panel at 640dp root width and above.",
       "Do pair selected colors with the existing semantic selected state.",
       "Do keep motion, opacity, and trigger feedback in the shared document view."
     ],
