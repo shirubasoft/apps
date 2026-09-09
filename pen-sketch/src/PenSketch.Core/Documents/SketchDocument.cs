@@ -20,7 +20,7 @@ public sealed record SketchDocument
     public SketchDocument SetElement(SketchElement element, bool endState)
     {
         if (!endState) return this with { Elements = Elements.Select(e => e.Id == element.Id ? element : e).ToArray() };
-        var pose = new ElementPose { Id = element.Id, Bounds = element.Bounds, Opacity = element.Opacity };
+        var pose = new ElementPose { Id = element.Id, Bounds = element.Bounds, Opacity = element.Opacity, FontSize = element.FontSize };
         return this with { EndPoses = EndPoses.Where(p => p.Id != element.Id).Append(pose).ToArray() };
     }
 

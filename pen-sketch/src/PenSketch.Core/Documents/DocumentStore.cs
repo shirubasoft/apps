@@ -23,7 +23,7 @@ public sealed class DocumentStore(string path)
         if (!File.Exists(path)) return new();
         var document = JsonSerializer.Deserialize<SketchDocument>(await File.ReadAllTextAsync(path), Options)
             ?? throw new InvalidDataException("The saved sketch is empty.");
-        if (document.Version != 1 || document.Width != 360 || document.Height != 640 || document.Elements is null || document.EndPoses is null)
+        if (document.Version != 1 || !CanvasViewport.IsSupported(document.Width, document.Height) || document.Elements is null || document.EndPoses is null)
             throw new InvalidDataException("This sketch uses an unsupported format.");
         return document;
     }

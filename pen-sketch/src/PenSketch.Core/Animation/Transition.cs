@@ -15,6 +15,7 @@ public sealed record ElementPose
     public required ElementId Id { get; init; }
     public required Bounds Bounds { get; init; }
     public float Opacity { get; init; } = 1;
+    public float? FontSize { get; init; }
 }
 public static class Transition
 {
@@ -33,7 +34,8 @@ public static class Transition
         {
             Bounds = new(Lerp(start.Bounds.X, end.Bounds.X), Lerp(start.Bounds.Y, end.Bounds.Y),
                 Lerp(start.Bounds.Width, end.Bounds.Width), Lerp(start.Bounds.Height, end.Bounds.Height)),
-            Opacity = Lerp(start.Opacity, end.Opacity)
+            Opacity = Lerp(start.Opacity, end.Opacity),
+            FontSize = Lerp(start.FontSize, end.FontSize ?? start.FontSize)
         };
     }
 }
