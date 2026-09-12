@@ -27,6 +27,11 @@ public sealed record MatchScore
             return this with { Points = points };
         }
 
+        return AwardGame(side);
+    }
+
+    private MatchScore AwardGame(Side side)
+    {
         var games = Games.Award(side);
         return IsTiebreak || games.HasWinner(6)
             ? new MatchScore { CompletedSets = CompletedSets.Add(games) }
