@@ -12,7 +12,7 @@
 | Held leftward drag revealing the next match | [Navigation](screenshots/swipe-next.png) |
 | Held upward drag revealing the red trash icon | [Delete preview](screenshots/delete-preview.png) |
 | Approved tennis-ball icon in the Wear OS app grid | [Launcher](screenshots/launcher.png) |
-| Left/right navigation, new match, canceled deletion and full deletion | [Gesture recording](screenshots/gestures.mp4) |
+| Left/right navigation, new match, canceled deletion and full deletion | [Gesture recording](https://github.com/user-attachments/assets/da0060f7-0c49-4ba7-82e4-47b74640ffe5) |
 
 ADB touch input verified navigation through existing matches, creation at the newest end, resistance at the oldest end, and point/undo controls after switching the score views. Short horizontal swipes starting on a plus button did not award points. Partial upward swipes, downward and diagonal gestures, and crossing the deletion threshold then returning below it left the match unchanged. Backgrounding the app during a held deletion canceled the gesture and restored the controls.
 
