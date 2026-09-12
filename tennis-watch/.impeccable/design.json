@@ -1,31 +1,160 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-12T16:59:32Z",
+  "generatedAt": "2026-09-12T17:14:09Z",
   "title": "Design System: Tennis Watch",
-  "extensions": {},
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "OLED black",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(26% 0.0000 0.0)",
+          "oklch(38% 0.0000 0.0)",
+          "oklch(49% 0.0000 0.0)",
+          "oklch(61% 0.0000 0.0)",
+          "oklch(72% 0.0000 0.0)",
+          "oklch(84% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "score": {
+        "role": "neutral",
+        "displayName": "Score off-white",
+        "tonalRamp": [
+          "oklch(15% 0.0057 128.5)",
+          "oklch(26% 0.0057 128.5)",
+          "oklch(38% 0.0057 128.5)",
+          "oklch(49% 0.0057 128.5)",
+          "oklch(61% 0.0057 128.5)",
+          "oklch(72% 0.0057 128.5)",
+          "oklch(84% 0.0057 128.5)",
+          "oklch(95% 0.0057 128.5)"
+        ]
+      },
+      "control-fill": {
+        "role": "neutral",
+        "displayName": "Graphite fill",
+        "tonalRamp": [
+          "oklch(15% 0.0111 156.4)",
+          "oklch(26% 0.0111 156.4)",
+          "oklch(38% 0.0111 156.4)",
+          "oklch(49% 0.0111 156.4)",
+          "oklch(61% 0.0111 156.4)",
+          "oklch(72% 0.0111 156.4)",
+          "oklch(84% 0.0111 156.4)",
+          "oklch(95% 0.0111 156.4)"
+        ]
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "History gray",
+        "tonalRamp": [
+          "oklch(15% 0.0145 152.5)",
+          "oklch(26% 0.0145 152.5)",
+          "oklch(38% 0.0145 152.5)",
+          "oklch(49% 0.0145 152.5)",
+          "oklch(61% 0.0145 152.5)",
+          "oklch(72% 0.0145 152.5)",
+          "oklch(84% 0.0145 152.5)",
+          "oklch(95% 0.0145 152.5)"
+        ]
+      },
+      "separator": {
+        "role": "neutral",
+        "displayName": "Separator gray",
+        "tonalRamp": [
+          "oklch(15% 0.0127 153.5)",
+          "oklch(26% 0.0127 153.5)",
+          "oklch(38% 0.0127 153.5)",
+          "oklch(49% 0.0127 153.5)",
+          "oklch(61% 0.0127 153.5)",
+          "oklch(72% 0.0127 153.5)",
+          "oklch(84% 0.0127 153.5)",
+          "oklch(95% 0.0127 153.5)"
+        ]
+      },
+      "divider": {
+        "role": "neutral",
+        "displayName": "Divider gray",
+        "tonalRamp": [
+          "oklch(15% 0.0085 159.6)",
+          "oklch(26% 0.0085 159.6)",
+          "oklch(38% 0.0085 159.6)",
+          "oklch(49% 0.0085 159.6)",
+          "oklch(61% 0.0085 159.6)",
+          "oklch(72% 0.0085 159.6)",
+          "oklch(84% 0.0085 159.6)",
+          "oklch(95% 0.0085 159.6)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Point score",
+        "purpose": "Native condensed bold text; uniform fitting from 24sp to the display size in 1sp steps."
+      },
+      "games": {
+        "displayName": "Current games",
+        "purpose": "Medium weight and score color distinguish the current set."
+      },
+      "separator": {
+        "displayName": "Point separator",
+        "purpose": "Regular multiplication sign between point scores."
+      },
+      "completed-set": {
+        "displayName": "Completed set",
+        "purpose": "Regular secondary text precedes current games."
+      }
+    }
+  },
   "components": [
     {
       "name": "Point control",
       "kind": "button",
       "refersTo": "point-control",
-      "description": "Preview of the native 48dp control. Pressed opacity is 0.55.",
-      "html": "<button class=\"ds-point\" aria-label=\"Add point\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><rect x=\"8\" y=\"8\" width=\"32\" height=\"32\" rx=\"11\" fill=\"none\" stroke=\"#686C67\" stroke-width=\"1.2\"/><path d=\"M24 16v16M16 24h16\" fill=\"none\" stroke=\"#F3F5F0\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg></button>",
-      "css": ".ds-point { display: block; width: 48px; height: 48px; padding: 0; border: 0; background: #000000; } .ds-point:active { opacity: 0.55; }"
+      "description": "Native SVG in a 48dp touch area. Pressed opacity is 0.55. The outline on keyboard focus is for this browser preview.",
+      "html": "<div class=\"ds-point-preview\"><button class=\"ds-control ds-point\" type=\"button\" aria-label=\"Add point to left side\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <rect x=\"5\" y=\"3\" width=\"38\" height=\"42\" rx=\"16\" fill=\"#252B27\"/>\n  <path d=\"M24 16v16M16 24h16\" fill=\"none\" stroke=\"#F4F6F2\" stroke-width=\"2.3\" stroke-linecap=\"round\"/>\n</svg></button></div>",
+      "css": ".ds-control { display: block; width: 48px; height: 48px; padding: 0; border: 0; background: transparent; cursor: pointer; } .ds-control svg { display: block; } .ds-control:focus-visible { outline: 1px solid #F4F6F2; outline-offset: 2px; } .ds-control:active { opacity: 0.55; } .ds-point-preview { width: 48px; background: #000000; } .ds-point:hover { opacity: 1; } .ds-point:active { opacity: 0.55; }"
     },
     {
       "name": "Undo control",
       "kind": "button",
       "refersTo": "undo-control",
-      "description": "Preview of enabled undo after score refresh. Disabled opacity is 0.3.",
-      "html": "<button class=\"ds-undo\" aria-label=\"Undo last point\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><path d=\"M14 18a12 12 0 1 1 4 17M24 29l-6 6 6 6\" fill=\"none\" stroke=\"#F3F5F0\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button>",
-      "css": ".ds-undo { display: block; width: 48px; height: 48px; padding: 0; border: 0; background: #000000; } .ds-undo svg { opacity: 0.75; } .ds-undo:active svg { opacity: 0.55; } .ds-undo:disabled svg { opacity: 0.3; }"
+      "description": "Enabled and disabled native undo artwork. Opacity is 0.8 enabled, 0.55 pressed, and 0.3 disabled. The focus outline belongs to the browser preview.",
+      "html": "<div class=\"ds-undo-preview\"><button class=\"ds-control ds-undo\" type=\"button\" aria-label=\"Undo last point\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <path d=\"M15 19a10 10 0 1 1 1.5 13M15 12v7h7\" fill=\"none\" stroke=\"#929B94\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n</svg></button><button class=\"ds-control ds-undo\" type=\"button\" aria-label=\"Undo last point unavailable\" disabled><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <path d=\"M15 19a10 10 0 1 1 1.5 13M15 12v7h7\" fill=\"none\" stroke=\"#929B94\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n</svg></button></div>",
+      "css": ".ds-control { display: block; width: 48px; height: 48px; padding: 0; border: 0; background: transparent; cursor: pointer; } .ds-control svg { display: block; } .ds-control:focus-visible { outline: 1px solid #F4F6F2; outline-offset: 2px; } .ds-control:active { opacity: 0.55; } .ds-undo-preview { display: flex; gap: 8px; width: max-content; background: #000000; } .ds-undo { opacity: 0.8; } .ds-undo:hover { opacity: 0.8; } .ds-undo:active { opacity: 0.55; } .ds-undo:disabled { opacity: 0.3; cursor: default; }"
+    },
+    {
+      "name": "Round scoring face",
+      "kind": "custom",
+      "description": "Layout preview at 225px across with completed-set history. Browser fonts approximate Android; native text fitting and font padding follow DESIGN.md. Preview buttons show control states without changing the score.",
+      "html": "<div class=\"ds-face\" role=\"group\" aria-label=\"Tennis score\"><button class=\"ds-control ds-left-plus\" type=\"button\" aria-label=\"Add point to left side\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <rect x=\"5\" y=\"3\" width=\"38\" height=\"42\" rx=\"16\" fill=\"#252B27\"/>\n  <path d=\"M24 16v16M16 24h16\" fill=\"none\" stroke=\"#F4F6F2\" stroke-width=\"2.3\" stroke-linecap=\"round\"/>\n</svg></button><span class=\"ds-label ds-points ds-left-points\">15</span><span class=\"ds-label ds-separator\">\u00d7</span><span class=\"ds-label ds-points ds-right-points\">30</span><button class=\"ds-control ds-right-plus\" type=\"button\" aria-label=\"Add point to right side\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <rect x=\"5\" y=\"3\" width=\"38\" height=\"42\" rx=\"16\" fill=\"#252B27\"/>\n  <path d=\"M24 16v16M16 24h16\" fill=\"none\" stroke=\"#F4F6F2\" stroke-width=\"2.3\" stroke-linecap=\"round\"/>\n</svg></button><div class=\"ds-divider\"></div><div class=\"ds-label ds-games\"><span class=\"ds-completed\">6 \u00d7 0</span><span>0 \u00d7 1</span></div><button class=\"ds-control ds-undo\" type=\"button\" aria-label=\"Undo last point\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <path d=\"M15 19a10 10 0 1 1 1.5 13M15 12v7h7\" fill=\"none\" stroke=\"#929B94\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n</svg></button></div>",
+      "css": ".ds-control { display: block; width: 48px; height: 48px; padding: 0; border: 0; background: transparent; cursor: pointer; } .ds-control svg { display: block; } .ds-control:focus-visible { outline: 1px solid #F4F6F2; outline-offset: 2px; } .ds-control:active { opacity: 0.55; } .ds-face { position: relative; width: 225px; height: 225px; overflow: hidden; border-radius: 50%; background: #000000; color: #F4F6F2; font-family: sans-serif; } .ds-face .ds-control { position: absolute; top: 43%; transform: translate(-50%, -50%); } .ds-face .ds-left-plus { left: 12.5%; } .ds-face .ds-right-plus { left: 87.5%; } .ds-face .ds-undo { left: 50%; top: 82.5%; opacity: 0.8; } .ds-face .ds-control:active { opacity: 0.55; } .ds-face .ds-label { position: absolute; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); white-space: nowrap; font-variant-numeric: tabular-nums; font-feature-settings: \"tnum\"; } .ds-face .ds-points { top: 43%; width: 25%; height: 66px; font-family: \"Roboto Condensed\", \"Arial Narrow\", sans-serif; font-stretch: condensed; font-size: 48px; font-weight: 700; line-height: 1; } .ds-face .ds-left-points { left: 33.2%; } .ds-face .ds-right-points { left: 66.8%; } .ds-face .ds-separator { left: 50%; top: 43%; width: 7.5%; height: 40px; color: #8B938D; font-size: 13px; font-weight: 400; } .ds-face .ds-divider { position: absolute; left: 25%; top: calc(57.5% - 0.375px); width: 50%; height: 0.75px; background: #343936; } .ds-face .ds-games { left: 50%; top: 65.5%; width: 76%; height: 32px; gap: 8px; font-size: 18px; font-weight: 500; } .ds-face .ds-completed { color: #929B94; font-size: 12px; font-weight: 400; }"
     }
   ],
   "narrative": {
-    "overview": "Large, lightweight point scores lead a single black watch screen. Outlined plus buttons sit beside the scores; the games row and undo control have less visual emphasis. The spacing follows the round display of the Samsung Galaxy Watch 5 Pro.",
+    "northStar": "Monochrome sports instrument",
+    "overview": "Condensed bold point scores and filled graphite plus controls lead a black watch face. Current games, completed sets, and a small gray undo arrow sit below. The composition supports a quick glance and a tap on court.",
+    "keyCharacteristics": [
+      "Condensed point numerals hold the strongest visual emphasis.",
+      "Fixed touch areas surround compact artwork, leaving the upper watch face open."
+    ],
+    "rules": [
+      {
+        "name": "The score hierarchy rule",
+        "body": "Points lead; current games are larger and brighter than completed sets. Keep the multiplication separator smaller and dimmer than the points.",
+        "section": "typography"
+      },
+      {
+        "name": "The touch area rule",
+        "body": "Keep the fixed control dimensions in the frontmatter when adjusting screen proportions. The artwork is smaller than its touch area.",
+        "section": "layout"
+      }
+    ],
     "dos": [
-      "Do preserve the two plus controls and the large point scores as the scoring screen's main row.",
-      "Do retain native text fitting and fixed touch targets when adjusting proportions.",
+      "Do preserve the filled plus controls and condensed bold points as the scoring screen's main row.",
+      "Do retain native text fitting, tabular figures, and fixed touch targets when adjusting proportions.",
       "Do keep secondary scoring and undo visually quieter than the points."
     ],
     "donts": [

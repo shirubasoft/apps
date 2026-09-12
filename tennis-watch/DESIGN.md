@@ -1,27 +1,38 @@
 ---
 name: Tennis Watch
-description: Minimal tennis scoring for a round Wear OS watch.
+description: Bold, glanceable tennis scoring for a round Wear OS watch.
 colors:
   background: "#000000"
-  score: "#F3F5F0"
-  secondary: "#949B92"
-  control-outline: "#686C67"
-  divider: "#424640"
+  score: "#F4F6F2"
+  control-fill: "#252B27"
+  secondary: "#929B94"
+  separator: "#8B938D"
+  divider: "#343936"
 typography:
   display:
-    fontFamily: "sans-serif-light"
-    fontSize: "42sp"
+    fontFamily: "sans-serif-condensed"
+    fontSize: "48sp"
+    fontWeight: 700
+    fontFeature: "tnum"
   games:
-    fontFamily: "sans-serif-light"
-    fontSize: "17sp"
+    fontFamily: "sans-serif-medium"
+    fontSize: "18sp"
+    fontWeight: 500
+    fontFeature: "tnum"
   separator:
-    fontFamily: "sans-serif-light"
-    fontSize: "14sp"
+    fontFamily: "sans-serif"
+    fontSize: "13sp"
+    fontWeight: 400
+    fontFeature: "tnum"
   completed-set:
-    fontFamily: "sans-serif-light"
+    fontFamily: "sans-serif"
     fontSize: "12sp"
+    fontWeight: 400
+    fontFeature: "tnum"
 rounded:
-  control-outline: "11dp"
+  point-fill: "16dp"
+spacing:
+  score-entry: "8dp"
 components:
   point-control:
     textColor: "{colors.score}"
@@ -29,7 +40,7 @@ components:
     height: "48dp"
     padding: "0dp"
   undo-control:
-    textColor: "{colors.score}"
+    textColor: "{colors.secondary}"
     width: "48dp"
     height: "48dp"
     padding: "0dp"
@@ -39,45 +50,67 @@ components:
 
 ## Overview
 
-Large, lightweight point scores lead a single black watch screen. Outlined plus buttons sit beside the scores; the games row and undo control have less visual emphasis. The spacing follows the round display of the Samsung Galaxy Watch 5 Pro.
+**Creative North Star: "Monochrome sports instrument"**
+
+Condensed bold point scores and filled graphite plus controls lead a black watch face. Current games, completed sets, and a small gray undo arrow sit below. The composition supports a quick glance and a tap on court.
+
+**Key Characteristics:**
+
+- Condensed point numerals hold the strongest visual emphasis.
+- Fixed touch areas surround compact artwork, leaving the upper watch face open.
 
 ## Colors
 
-The palette uses off-white and subtly green-tinted grays on black. `score` colors the point numerals, current games, and icon strokes. `secondary` colors the small multiplication separator and completed sets. `control-outline` defines the plus buttons; `divider` separates points from games without competing with either.
+The palette uses off-white and green-tinted grays on an OLED black ground.
+
+### Neutral
+
+| Token | Use |
+| --- | --- |
+| `background` | Watch face and surrounding screen |
+| `score` | Point numerals, current games, and plus strokes |
+| `control-fill` | Filled graphite shape behind each plus |
+| `secondary` | Completed sets and undo stroke |
+| `separator` | Small multiplication sign between point scores |
+| `divider` | Thin line between points and games |
 
 ## Typography
 
-Android's `sans-serif-light` supplies every score label. Labels are centered, single-line, and support system font scaling. The point numerals use native uniform text fitting from 24sp through the display size in 1sp increments, allowing large-text settings and wider scores to fit their bounds.
+Android's condensed bold display face gives points their width and weight. Current games use the medium face; the separator and completed sets use regular sans-serif. The frontmatter defines each role's size and weight.
 
-Current games are larger and brighter than completed sets. The multiplication sign remains small between the point scores.
+Labels are centered, single-line, and support system font scaling. All labels request tabular figures and disable native font padding. Point labels use native uniform text fitting from 24sp to the display size in 1sp increments, so advantage text and multi-digit tiebreak scores fit their fixed bounds.
+
+**The score hierarchy rule.** Points lead; current games are larger and brighter than completed sets. Keep the multiplication separator smaller and dimmer than the points.
 
 ## Layout
 
-The layout centers a square whose side is the shorter display dimension. Positions scale with that square, while controls retain their fixed touch area.
+The layout centers a square whose side is the shorter display dimension. Coordinates below are relative to that square. Geometry uses dp; type uses sp.
 
-The point row is centered at 48% of the square's height. Plus buttons sit at 12.5% and 87.5% of its width; the scores sit at 33% and 67%. The separator sits between them, slightly lower at 49% height.
+The point row shares a center at 43% height. Plus controls sit at 12.5% and 87.5% width. Point labels sit at 33.2% and 66.8%, each in a box 25% of the square's width and 66dp high. The separator sits at 50% width in a box 7.5% wide and 40dp high.
 
-A thin divider spans 43% of the square at 61.5% height. The centered games row sits at 68.5%, with 12dp between score entries. Undo sits near the bottom at 85.5%. The space above the point row remains open.
+The centered divider spans 50% of the square at 57.5% height and is 0.75dp thick. The games row sits at 65.5% height in a box 76% wide and 32dp high, with the score-entry gap between labels. Undo sits at 50% width and 82.5% height. The space above the point row remains open.
+
+**The touch area rule.** Keep the fixed control dimensions in the frontmatter when adjusting screen proportions. The artwork is smaller than its touch area.
 
 ## Elevation & Depth
 
-The screen is flat. Brightness, outlines, and spacing establish hierarchy without shadows or raised containers.
+The screen is flat, without shadows. Graphite fills give the plus controls a visible body; text brightness and spacing separate points from match history.
 
 ## Shapes
 
-Each plus icon has a rounded square outline, 32dp across inside its touch target. Its border is 1.2dp thick; the plus uses rounded 1.6dp strokes. Undo uses an open curved arrow with rounded 1.7dp strokes. The divider is 0.75dp thick.
+Each plus sits on a filled rounded rectangle, 38dp wide and 42dp high, centered inside its control with the point-fill radius. The plus uses rounded 2.3dp strokes. Undo is an open curved arrow with rounded 1.8dp strokes and joins.
 
 ## Components
 
-- The left and right plus controls use the same outlined SVG and retain separate accessible descriptions. Pressing a control sets its opacity to 0.55; release restores it to 1.
-- Point labels share equal bounds, each 23% of the square's width and 62dp high. Their native fit preserves a single line.
-- The compact score row shows the latest completed sets in the smaller secondary style, followed by current games in the brighter games style.
-- Undo uses the same touch dimensions as the plus controls. Refresh sets its opacity to 0.75 when an undo is available and 0.3 when disabled.
+- The left and right plus controls share the filled SVG and have separate accessible descriptions. Pressing sets opacity to 0.55; release restores it to 1. Native button backgrounds are removed so the SVG defines the visible control.
+- Point labels retain equal bounds and native fitting. Their accessible descriptions identify the side and current point text.
+- The games row shows the latest two completed sets in the smaller secondary style, followed by current games in the brighter medium face. Accessible descriptions distinguish completed sets from current games.
+- Undo uses the same touch dimensions as the plus controls. Enabled opacity is 0.8, pressed opacity is 0.55, and disabled opacity is 0.3. Release restores 0.8.
 
 ## Do's and Don'ts
 
-- Do preserve the two plus controls and the large point scores as the scoring screen's main row.
-- Do retain native text fitting and fixed touch targets when adjusting proportions.
+- Do preserve the filled plus controls and condensed bold points as the scoring screen's main row.
+- Do retain native text fitting, tabular figures, and fixed touch targets when adjusting proportions.
 - Do keep secondary scoring and undo visually quieter than the points.
 - Don't add names, menus, banners, extra controls, or a completion screen to this scoring view.
 - Don't draw a hardware bezel inside the app.
