@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-12T16:59:32Z",
+  "title": "Design System: Tennis Watch",
+  "extensions": {},
+  "components": [
+    {
+      "name": "Point control",
+      "kind": "button",
+      "refersTo": "point-control",
+      "description": "Preview of the native 48dp control. Pressed opacity is 0.55.",
+      "html": "<button class=\"ds-point\" aria-label=\"Add point\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><rect x=\"8\" y=\"8\" width=\"32\" height=\"32\" rx=\"11\" fill=\"none\" stroke=\"#686C67\" stroke-width=\"1.2\"/><path d=\"M24 16v16M16 24h16\" fill=\"none\" stroke=\"#F3F5F0\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg></button>",
+      "css": ".ds-point { display: block; width: 48px; height: 48px; padding: 0; border: 0; background: #000000; } .ds-point:active { opacity: 0.55; }"
+    },
+    {
+      "name": "Undo control",
+      "kind": "button",
+      "refersTo": "undo-control",
+      "description": "Preview of enabled undo after score refresh. Disabled opacity is 0.3.",
+      "html": "<button class=\"ds-undo\" aria-label=\"Undo last point\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><path d=\"M14 18a12 12 0 1 1 4 17M24 29l-6 6 6 6\" fill=\"none\" stroke=\"#F3F5F0\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button>",
+      "css": ".ds-undo { display: block; width: 48px; height: 48px; padding: 0; border: 0; background: #000000; } .ds-undo svg { opacity: 0.75; } .ds-undo:active svg { opacity: 0.55; } .ds-undo:disabled svg { opacity: 0.3; }"
+    }
+  ],
+  "narrative": {
+    "overview": "Large, lightweight point scores lead a single black watch screen. Outlined plus buttons sit beside the scores; the games row and undo control have less visual emphasis. The spacing follows the round display of the Samsung Galaxy Watch 5 Pro.",
+    "dos": [
+      "Do preserve the two plus controls and the large point scores as the scoring screen's main row.",
+      "Do retain native text fitting and fixed touch targets when adjusting proportions.",
+      "Do keep secondary scoring and undo visually quieter than the points."
+    ],
+    "donts": [
+      "Don't add names, menus, banners, extra controls, or a completion screen to this scoring view.",
+      "Don't draw a hardware bezel inside the app."
+    ]
+  }
+}
