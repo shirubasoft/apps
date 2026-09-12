@@ -64,6 +64,8 @@ cd "$repo_root"
 dotnet build "$repo_root/src/TennisWatch.AppHost/TennisWatch.AppHost.csproj" --configuration "$configuration"
 
 cd "$repo_root/src/TennisWatch"
+# Regenerate Android bindings together; stale incremental bindings can crash at startup.
+dotnet clean TennisWatch.csproj --configuration "$configuration" --framework net10.0-android
 dotnet publish TennisWatch.csproj \
   --configuration "$configuration" --framework net10.0-android \
   -p:AndroidPackageFormat=apk -p:PublishDir="$android_output/" \
