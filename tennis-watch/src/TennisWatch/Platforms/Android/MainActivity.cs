@@ -16,9 +16,12 @@ public sealed class MainActivity : MauiAppCompatActivity
 {
     private float startX;
     private float startY;
-    private bool swiping;
     private bool moved;
-    private bool multiplePointers;
+    private bool suppressed;
+    private SwipeAxis axis;
+
+    private static ScorePage? Page =>
+        Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Page as ScorePage;
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
@@ -28,46 +31,66 @@ public sealed class MainActivity : MauiAppCompatActivity
         new WindowInsetsControllerCompat(window, window.DecorView).Hide(WindowInsetsCompat.Type.SystemBars());
     }
 
+    protected override void OnPause()
+    {
+        Page?.CancelSwipe();
+        base.OnPause();
+    }
+
     public override bool DispatchTouchEvent(MotionEvent? e)
     {
-        if (e is null) return base.DispatchTouchEvent(e);
+        if (e is null || Page is not { } page) return base.DispatchTouchEvent(e);
         var density = Resources?.DisplayMetrics?.Density ?? 1;
-        var dx = e.GetX() - startX;
-        var dy = e.GetY() - startY;
+        var dx = (e.GetX() - startX) / density;
+        var dy = (e.GetY() - startY) / density;
         switch (e.ActionMasked)
         {
             case MotionEventActions.Down:
                 startX = e.GetX();
                 startY = e.GetY();
-                swiping = false;
                 moved = false;
-                multiplePointers = false;
-                break;
+                axis = SwipeAxis.None;
+                suppressed = page.IsAnimating;
+                return suppressed || base.DispatchTouchEvent(e);
             case MotionEventActions.PointerDown:
-                multiplePointers = true;
-                break;
+                CancelChildTouch(e);
+                page.CancelSwipe();
+                suppressed = true;
+                return true;
             case MotionEventActions.Cancel:
-                moved = true;
-                swiping = false;
-                break;
+                page.CancelSwipe();
+                suppressed = true;
+                return base.DispatchTouchEvent(e);
             case MotionEventActions.Move:
-                if (!moved && Math.Max(Math.Abs(dx), Math.Abs(dy)) > 12 * density)
+                if (suppressed) return true;
+                if (!moved && Math.Max(Math.Abs(dx), Math.Abs(dy)) > MatchSwipe.TouchSlop)
                 {
                     moved = true;
-                    using var cancel = MotionEvent.Obtain(e) ?? throw new InvalidOperationException("Cannot cancel touch.");
-                    cancel.Action = MotionEventActions.Cancel;
-                    base.DispatchTouchEvent(cancel);
+                    axis = MatchSwipe.Axis(dx, dy);
+                    CancelChildTouch(e);
                 }
-                swiping |= MatchSwipe.Recognize(dx, dy, density) != SwipeAction.None;
-                if (moved) return true;
+                if (moved)
+                {
+                    page.Drag(axis, dx, dy);
+                    return true;
+                }
                 break;
             case MotionEventActions.Up:
-                if (!multiplePointers && swiping &&
-                    Microsoft.Maui.Controls.Application.Current?.Windows.FirstOrDefault()?.Page is ScorePage page)
-                    page.Navigate(MatchSwipe.Recognize(dx, dy, density));
-                if (moved || multiplePointers) return true;
+                if (suppressed) return true;
+                if (moved)
+                {
+                    page.FinishSwipe(axis, dx, dy);
+                    return true;
+                }
                 break;
         }
         return base.DispatchTouchEvent(e);
+    }
+
+    private void CancelChildTouch(MotionEvent e)
+    {
+        using var cancel = MotionEvent.Obtain(e) ?? throw new InvalidOperationException("Cannot cancel touch.");
+        cancel.Action = MotionEventActions.Cancel;
+        base.DispatchTouchEvent(cancel);
     }
 }

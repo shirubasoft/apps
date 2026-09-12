@@ -1,23 +1,21 @@
 using TennisWatch.Core.Matches;
-using TennisWatch.Core.Scoring;
 
 namespace TennisWatch.Scoring;
 
 public sealed class ScorePage : ContentPage
 {
     internal const int PointFontSize = 48;
-
     private readonly MatchFile storage = new(Path.Combine(FileSystem.AppDataDirectory, "matches.json"));
     private readonly MatchBook book;
-    private readonly AbsoluteLayout face = new() { BackgroundColor = Colors.Black };
-    private readonly Label leftPoints = PointLabel();
-    private readonly Label rightPoints = PointLabel();
-    private readonly Label separator = ScoreLabel(13);
-    private readonly HorizontalStackLayout sets = new() { Spacing = 8, HorizontalOptions = LayoutOptions.Center };
-    private readonly BoxView line = new() { Color = Color.FromArgb("#343936") };
-    private readonly ImageButton leftPlus;
-    private readonly ImageButton rightPlus;
-    private readonly ImageButton undo;
+    private readonly Grid viewport = new() { BackgroundColor = Colors.Black, IsClippedToBounds = true };
+    private readonly AbsoluteLayout deleteLayer = new() { InputTransparent = true, IsVisible = false };
+    private readonly Image trash = new() { Source = "trash.png", Aspect = Aspect.AspectFit, AutomationId = "delete-preview" };
+    private ScoreFace current;
+    private ScoreFace incoming;
+    private SwipeAction previewAction;
+    private DateTimeOffset swipeStartedAt;
+    private bool dragging;
+    private int animationGeneration;
 
     public ScorePage()
     {
@@ -25,110 +23,149 @@ public sealed class ScorePage : ContentPage
         Padding = 0;
         SafeAreaEdges = SafeAreaEdges.None;
         NavigationPage.SetHasNavigationBar(this, false);
-        book = storage.Load();
-        leftPlus = Control("plus.png", "Add point to left side", "left-plus", () => book.Award(Side.Left));
-        rightPlus = Control("plus.png", "Add point to right side", "right-plus", () => book.Award(Side.Right));
-        undo = Control("undo.png", "Undo last point", "undo", book.Undo);
-        leftPoints.AutomationId = "left-points";
-        rightPoints.AutomationId = "right-points";
-        separator.Text = "×";
-        separator.TextColor = Color.FromArgb("#8B938D");
-        foreach (var view in new View[] { leftPlus, leftPoints, separator, rightPoints, rightPlus, line, sets, undo })
-            face.Add(view);
-        Content = face;
-        face.SizeChanged += (_, _) => Arrange();
-        Refresh();
+        book = storage.Load(DateTimeOffset.Now);
+        storage.Save(book);
+        current = CreateFace();
+        incoming = CreateFace();
+        incoming.InputTransparent = true;
+        incoming.IsVisible = false;
+        deleteLayer.Add(trash);
+        viewport.Add(deleteLayer);
+        viewport.Add(incoming);
+        viewport.Add(current);
+        viewport.SizeChanged += (_, _) => ArrangeTrash();
+        Content = viewport;
+        current.Render(book.Current);
     }
 
-    public void Navigate(SwipeAction action)
-    {
-        switch (action)
-        {
-            case SwipeAction.NewMatch: Change(book.NewMatch); break;
-            case SwipeAction.PreviousMatch: Change(book.PreviousMatch); break;
-        }
-    }
+    public bool IsAnimating { get; private set; }
 
-    private ImageButton Control(string image, string description, string id, Action action)
-    {
-        var button = new ImageButton
-        {
-            Source = image, BackgroundColor = Colors.Transparent, Padding = 0,
-            Aspect = Aspect.AspectFit, AutomationId = id, WidthRequest = 48, HeightRequest = 48
-        };
-        SemanticProperties.SetDescription(button, description);
-        button.Clicked += (_, _) => Change(action);
-        button.Pressed += (_, _) => button.Opacity = 0.55;
-        button.Released += (_, _) => button.Opacity = id == "undo" ? 0.8 : 1;
-        return button;
-    }
+    private ScoreFace CreateFace() => new(side => Change(() => book.Award(side)), () => Change(book.Undo));
 
     private void Change(Action action)
     {
+        if (IsAnimating || dragging) return;
         action();
         storage.Save(book);
-        Refresh();
+        current.Render(book.Current);
     }
 
-    private void Refresh()
+    public void Drag(SwipeAxis axis, float x, float y)
     {
-        leftPoints.Text = book.Score.PointText(Side.Left);
-        rightPoints.Text = book.Score.PointText(Side.Right);
-        SemanticProperties.SetDescription(leftPoints, $"Left points {leftPoints.Text}");
-        SemanticProperties.SetDescription(rightPoints, $"Right points {rightPoints.Text}");
-        sets.Clear();
-        foreach (var score in book.Score.CompletedSets.TakeLast(2))
+        if (IsAnimating || axis == SwipeAxis.None) return;
+        if (!dragging)
         {
-            var label = ScoreLabel(12);
-            label.Text = score.ToString();
-            label.TextColor = Color.FromArgb("#929B94");
-            SemanticProperties.SetDescription(label, $"Completed set, {score.Left} to {score.Right}");
-            sets.Add(label);
+            dragging = true;
+            swipeStartedAt = DateTimeOffset.Now;
+            current.ResetControls();
         }
-        var current = ScoreLabel(18);
-        current.FontFamily = "sans-serif-medium";
-        current.Text = book.Score.Games.ToString();
-        current.AutomationId = "current-set";
-        SemanticProperties.SetDescription(current, $"Current set games, {book.Score.Games.Left} to {book.Score.Games.Right}");
-        sets.Add(current);
-        undo.IsEnabled = book.CanUndo;
-        undo.Opacity = book.CanUndo ? 0.8 : 0.3;
-        Arrange();
+        if (axis == SwipeAxis.Horizontal)
+        {
+            var action = x < 0 ? SwipeAction.NextMatch : SwipeAction.PreviousMatch;
+            var blocked = action == SwipeAction.PreviousMatch && !book.HasPrevious;
+            if (previewAction != action)
+            {
+                incoming.Render(action == SwipeAction.NextMatch
+                    ? book.PreviewNext(swipeStartedAt) : book.PreviewPrevious());
+                previewAction = action;
+            }
+            incoming.IsVisible = !blocked;
+            current.TranslationX = blocked ? x * 0.18 : Math.Clamp(x, -viewport.Width, viewport.Width);
+            incoming.TranslationX = current.TranslationX + (x < 0 ? viewport.Width : -viewport.Width);
+        }
+        else
+        {
+            current.TranslationY = Math.Clamp(y, -viewport.Height, 0);
+            var progress = Math.Clamp(-y / MatchSwipe.DeleteDistance((float)viewport.Height), 0, 1);
+            deleteLayer.IsVisible = y < 0;
+            trash.Opacity = 0.45 + 0.55 * progress;
+            trash.Scale = 0.8 + 0.2 * progress;
+        }
     }
 
-    private void Arrange()
+    public async void FinishSwipe(SwipeAxis axis, float x, float y)
     {
-        var size = Math.Min(face.Width, face.Height);
-        if (size <= 0) return;
-        var offsetX = (face.Width - size) / 2;
-        var offsetY = (face.Height - size) / 2;
-        void Place(View view, double centerX, double centerY, double width, double height) =>
-            AbsoluteLayout.SetLayoutBounds(view, new Rect(offsetX + size * centerX - width / 2,
-                offsetY + size * centerY - height / 2, width, height));
-
-        Place(leftPlus, 0.125, 0.43, 48, 48);
-        Place(leftPoints, 0.332, 0.43, size * 0.25, 66);
-        Place(separator, 0.5, 0.43, size * 0.075, 40);
-        Place(rightPoints, 0.668, 0.43, size * 0.25, 66);
-        Place(rightPlus, 0.875, 0.43, 48, 48);
-        Place(line, 0.5, 0.575, size * 0.5, 0.75);
-        Place(sets, 0.5, 0.655, size * 0.76, 32);
-        Place(undo, 0.5, 0.825, 48, 48);
+        if (IsAnimating) return;
+        Drag(axis, x, y);
+        var action = MatchSwipe.Recognize(axis, x, y, (float)viewport.Height);
+        if (action == SwipeAction.PreviousMatch && !book.HasPrevious) action = SwipeAction.None;
+        var generation = ++animationGeneration;
+        IsAnimating = true;
+        try
+        {
+            switch (action)
+            {
+                case SwipeAction.NextMatch:
+                case SwipeAction.PreviousMatch:
+                    var destination = action == SwipeAction.NextMatch ? -viewport.Width : viewport.Width;
+                    await Task.WhenAll(Move(current, destination, 0, 150), Move(incoming, 0, 0, 150));
+                    if (generation != animationGeneration) return;
+                    if (action == SwipeAction.NextMatch) book.NextMatch(swipeStartedAt);
+                    else book.PreviousMatch();
+                    storage.Save(book);
+                    (current, incoming) = (incoming, current);
+                    current.InputTransparent = false;
+                    incoming.InputTransparent = true;
+                    current.Render(book.Current);
+                    break;
+                case SwipeAction.DeleteMatch:
+                    await Move(current, 0, -viewport.Height, 130);
+                    if (generation != animationGeneration) return;
+                    book.DeleteCurrent(DateTimeOffset.Now);
+                    storage.Save(book);
+                    current.Render(book.Current);
+                    deleteLayer.IsVisible = false;
+                    current.TranslationY = viewport.Height;
+                    await Move(current, 0, 0, 180);
+                    break;
+                default:
+                    var restingX = previewAction == SwipeAction.NextMatch ? viewport.Width : -viewport.Width;
+                    await Task.WhenAll(Move(current, 0, 0, 160), Move(incoming, restingX, 0, 160));
+                    break;
+            }
+        }
+        finally
+        {
+            if (generation == animationGeneration) ResetMotion();
+        }
     }
 
-    private static Label PointLabel()
+    public void CancelSwipe()
     {
-        var label = ScoreLabel(PointFontSize);
-        label.FontFamily = "sans-serif-condensed";
-        label.FontAttributes = FontAttributes.Bold;
-        return label;
+        animationGeneration++;
+        current.CancelAnimations();
+        incoming.CancelAnimations();
+        ResetMotion();
     }
 
-    private static Label ScoreLabel(double fontSize) => new()
+    private void ResetMotion()
     {
-        FontFamily = "sans-serif", FontSize = fontSize, TextColor = Color.FromArgb("#F4F6F2"),
-        HorizontalTextAlignment = TextAlignment.Center, VerticalTextAlignment = TextAlignment.Center,
-        VerticalOptions = LayoutOptions.Center, MaxLines = 1,
-        LineBreakMode = LineBreakMode.NoWrap, FontAutoScalingEnabled = true
-    };
+        current.TranslationX = current.TranslationY = 0;
+        incoming.TranslationX = incoming.TranslationY = 0;
+        incoming.IsVisible = false;
+        deleteLayer.IsVisible = false;
+        previewAction = SwipeAction.None;
+        dragging = IsAnimating = false;
+        current.ResetControls();
+    }
+
+    private Task Move(View view, double x, double y, uint milliseconds)
+    {
+        var scale = Android.Provider.Settings.Global.GetFloat(Android.App.Application.Context.ContentResolver,
+            Android.Provider.Settings.Global.AnimatorDurationScale, 1);
+        if (scale <= 0)
+        {
+            view.TranslationX = x;
+            view.TranslationY = y;
+            return Task.CompletedTask;
+        }
+        return view.TranslateToAsync(x, y, (uint)(milliseconds * Math.Min(scale, 2)), Easing.CubicOut);
+    }
+
+    private void ArrangeTrash()
+    {
+        var size = Math.Min(viewport.Width, viewport.Height);
+        AbsoluteLayout.SetLayoutBounds(trash, new Rect((viewport.Width - 48) / 2,
+            (viewport.Height - size) / 2 + size * 0.8 - 24, 48, 48));
+    }
 }

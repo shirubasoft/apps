@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-12T17:14:09Z",
+  "generatedAt": "2026-09-12T18:07:24Z",
   "title": "Design System: Tennis Watch",
   "extensions": {
     "colorMeta": {
@@ -87,6 +87,10 @@
           "oklch(84% 0.0085 159.6)",
           "oklch(95% 0.0085 159.6)"
         ]
+      },
+      "deletion": {
+        "role": "error",
+        "displayName": "Deletion red"
       }
     },
     "typographyMeta": {
@@ -105,6 +109,14 @@
       "completed-set": {
         "displayName": "Completed set",
         "purpose": "Regular secondary text precedes current games."
+      },
+      "match-number": {
+        "displayName": "Match number",
+        "purpose": "Medium weight metadata above the score; native fitting from 9sp to 14sp."
+      },
+      "match-date": {
+        "displayName": "Creation date",
+        "purpose": "Secondary gray date in the current locale; native fitting from 9sp to 11sp."
       }
     }
   },
@@ -128,17 +140,24 @@
     {
       "name": "Round scoring face",
       "kind": "custom",
-      "description": "Layout preview at 225px across with completed-set history. Browser fonts approximate Android; native text fitting and font padding follow DESIGN.md. Preview buttons show control states without changing the score.",
-      "html": "<div class=\"ds-face\" role=\"group\" aria-label=\"Tennis score\"><button class=\"ds-control ds-left-plus\" type=\"button\" aria-label=\"Add point to left side\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <rect x=\"5\" y=\"3\" width=\"38\" height=\"42\" rx=\"16\" fill=\"#252B27\"/>\n  <path d=\"M24 16v16M16 24h16\" fill=\"none\" stroke=\"#F4F6F2\" stroke-width=\"2.3\" stroke-linecap=\"round\"/>\n</svg></button><span class=\"ds-label ds-points ds-left-points\">15</span><span class=\"ds-label ds-separator\">\u00d7</span><span class=\"ds-label ds-points ds-right-points\">30</span><button class=\"ds-control ds-right-plus\" type=\"button\" aria-label=\"Add point to right side\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <rect x=\"5\" y=\"3\" width=\"38\" height=\"42\" rx=\"16\" fill=\"#252B27\"/>\n  <path d=\"M24 16v16M16 24h16\" fill=\"none\" stroke=\"#F4F6F2\" stroke-width=\"2.3\" stroke-linecap=\"round\"/>\n</svg></button><div class=\"ds-divider\"></div><div class=\"ds-label ds-games\"><span class=\"ds-completed\">6 \u00d7 0</span><span>0 \u00d7 1</span></div><button class=\"ds-control ds-undo\" type=\"button\" aria-label=\"Undo last point\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <path d=\"M15 19a10 10 0 1 1 1.5 13M15 12v7h7\" fill=\"none\" stroke=\"#929B94\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n</svg></button></div>",
-      "css": ".ds-control { display: block; width: 48px; height: 48px; padding: 0; border: 0; background: transparent; cursor: pointer; } .ds-control svg { display: block; } .ds-control:focus-visible { outline: 1px solid #F4F6F2; outline-offset: 2px; } .ds-control:active { opacity: 0.55; } .ds-face { position: relative; width: 225px; height: 225px; overflow: hidden; border-radius: 50%; background: #000000; color: #F4F6F2; font-family: sans-serif; } .ds-face .ds-control { position: absolute; top: 43%; transform: translate(-50%, -50%); } .ds-face .ds-left-plus { left: 12.5%; } .ds-face .ds-right-plus { left: 87.5%; } .ds-face .ds-undo { left: 50%; top: 82.5%; opacity: 0.8; } .ds-face .ds-control:active { opacity: 0.55; } .ds-face .ds-label { position: absolute; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); white-space: nowrap; font-variant-numeric: tabular-nums; font-feature-settings: \"tnum\"; } .ds-face .ds-points { top: 43%; width: 25%; height: 66px; font-family: \"Roboto Condensed\", \"Arial Narrow\", sans-serif; font-stretch: condensed; font-size: 48px; font-weight: 700; line-height: 1; } .ds-face .ds-left-points { left: 33.2%; } .ds-face .ds-right-points { left: 66.8%; } .ds-face .ds-separator { left: 50%; top: 43%; width: 7.5%; height: 40px; color: #8B938D; font-size: 13px; font-weight: 400; } .ds-face .ds-divider { position: absolute; left: 25%; top: calc(57.5% - 0.375px); width: 50%; height: 0.75px; background: #343936; } .ds-face .ds-games { left: 50%; top: 65.5%; width: 76%; height: 32px; gap: 8px; font-size: 18px; font-weight: 500; } .ds-face .ds-completed { color: #929B94; font-size: 12px; font-weight: 400; }"
+      "description": "Layout preview at 225px across with match metadata and completed-set history. Browser fonts approximate Android; native text fitting and font padding follow DESIGN.md. Preview buttons show control states without changing the score.",
+      "html": "<div class=\"ds-face\" role=\"group\" aria-label=\"Tennis score\"><span class=\"ds-label ds-match-number\">Match 01</span><span class=\"ds-label ds-match-date\">12 Sep 2026</span><button class=\"ds-control ds-left-plus\" type=\"button\" aria-label=\"Add point to left side\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <rect x=\"5\" y=\"3\" width=\"38\" height=\"42\" rx=\"16\" fill=\"#252B27\"/>\n  <path d=\"M24 16v16M16 24h16\" fill=\"none\" stroke=\"#F4F6F2\" stroke-width=\"2.3\" stroke-linecap=\"round\"/>\n</svg></button><span class=\"ds-label ds-points ds-left-points\">15</span><span class=\"ds-label ds-separator\">\u00d7</span><span class=\"ds-label ds-points ds-right-points\">30</span><button class=\"ds-control ds-right-plus\" type=\"button\" aria-label=\"Add point to right side\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <rect x=\"5\" y=\"3\" width=\"38\" height=\"42\" rx=\"16\" fill=\"#252B27\"/>\n  <path d=\"M24 16v16M16 24h16\" fill=\"none\" stroke=\"#F4F6F2\" stroke-width=\"2.3\" stroke-linecap=\"round\"/>\n</svg></button><div class=\"ds-divider\"></div><div class=\"ds-label ds-games\"><span class=\"ds-completed\">6 \u00d7 0</span><span>0 \u00d7 1</span></div><button class=\"ds-control ds-undo\" type=\"button\" aria-label=\"Undo last point\"><svg aria-hidden=\"true\" xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <path d=\"M15 19a10 10 0 1 1 1.5 13M15 12v7h7\" fill=\"none\" stroke=\"#929B94\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n</svg></button></div>",
+      "css": ".ds-control { display: block; width: 48px; height: 48px; padding: 0; border: 0; background: transparent; cursor: pointer; } .ds-control svg { display: block; } .ds-control:focus-visible { outline: 1px solid #F4F6F2; outline-offset: 2px; } .ds-control:active { opacity: 0.55; } .ds-face { position: relative; width: 225px; height: 225px; overflow: hidden; border-radius: 50%; background: #000000; color: #F4F6F2; font-family: sans-serif; } .ds-face .ds-control { position: absolute; top: 43%; transform: translate(-50%, -50%); } .ds-face .ds-left-plus { left: 12.5%; } .ds-face .ds-right-plus { left: 87.5%; } .ds-face .ds-undo { left: 50%; top: 82.5%; opacity: 0.8; } .ds-face .ds-control:active { opacity: 0.55; } .ds-face .ds-label { position: absolute; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); white-space: nowrap; font-variant-numeric: tabular-nums; font-feature-settings: \"tnum\"; } .ds-face .ds-points { top: 43%; width: 25%; height: 66px; font-family: \"Roboto Condensed\", \"Arial Narrow\", sans-serif; font-stretch: condensed; font-size: 48px; font-weight: 700; line-height: 1; } .ds-face .ds-left-points { left: 33.2%; } .ds-face .ds-right-points { left: 66.8%; } .ds-face .ds-separator { left: 50%; top: 43%; width: 7.5%; height: 40px; color: #8B938D; font-size: 13px; font-weight: 400; } .ds-face .ds-divider { position: absolute; left: 25%; top: calc(57.5% - 0.375px); width: 50%; height: 0.75px; background: #343936; } .ds-face .ds-games { left: 50%; top: 65.5%; width: 76%; height: 32px; gap: 8px; font-size: 18px; font-weight: 500; } .ds-face .ds-completed { color: #929B94; font-size: 12px; font-weight: 400; } .ds-face .ds-match-number { left: 50%; top: 18.5%; width: 65%; height: 22px; font-size: 14px; font-weight: 500; } .ds-face .ds-match-date { left: 50%; top: 27.5%; width: 70%; height: 20px; font-size: 11px; color: #929B94; }"
+    },
+    {
+      "name": "Delete preview",
+      "kind": "custom",
+      "description": "Revealed behind an upward-moving score face. Fades from 0.45 to 1 and grows from 0.8 to 1 as the drag reaches the deletion threshold. It is a gesture cue, not a button.",
+      "html": "<div class=\"ds-trash-preview\" aria-label=\"Delete match preview\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <g fill=\"none\" stroke=\"#FF6B6B\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n    <path d=\"M12 15h24M19 15v-4h10v4M15 15l2 24h14l2-24M21 21v12M27 21v12\"/>\n  </g>\n</svg></div>",
+      "css": ".ds-trash-preview { width: 48px; height: 48px; background: #000000; } .ds-trash-preview svg { display: block; }"
     }
   ],
   "narrative": {
     "northStar": "Monochrome sports instrument",
-    "overview": "Condensed bold point scores and filled graphite plus controls lead a black watch face. Current games, completed sets, and a small gray undo arrow sit below. The composition supports a quick glance and a tap on court.",
+    "overview": "Condensed bold point scores and filled graphite plus controls lead a black watch face. A small match number and creation date sit above; current games, completed sets, and a gray undo arrow sit below. The composition supports a quick glance and a tap on court.",
     "keyCharacteristics": [
       "Condensed point numerals hold the strongest visual emphasis.",
-      "Fixed touch areas surround compact artwork, leaving the upper watch face open."
+      "Fixed touch areas surround compact artwork. The match number and date occupy the space above the points."
     ],
     "rules": [
       {
@@ -150,6 +169,11 @@
         "name": "The touch area rule",
         "body": "Keep the fixed control dimensions in the frontmatter when adjusting screen proportions. The artwork is smaller than its touch area.",
         "section": "layout"
+      },
+      {
+        "name": "Swipe feedback",
+        "section": "motion",
+        "body": "Track the finger when navigating matches or revealing deletion. Release a horizontal swipe to settle in 150ms, or return an incomplete swipe in 160ms. Up reveals a red trash icon; release beyond 45% of the viewport, minimum 96dp, to delete. Respect disabled system animations."
       }
     ],
     "dos": [
