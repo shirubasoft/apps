@@ -5,14 +5,16 @@ namespace TennisWatch.Scoring;
 
 public sealed class ScorePage : ContentPage
 {
+    internal const int PointFontSize = 48;
+
     private readonly MatchFile storage = new(Path.Combine(FileSystem.AppDataDirectory, "matches.json"));
     private readonly MatchBook book;
     private readonly AbsoluteLayout face = new() { BackgroundColor = Colors.Black };
-    private readonly Label leftPoints = ScoreLabel(42);
-    private readonly Label rightPoints = ScoreLabel(42);
-    private readonly Label separator = ScoreLabel(14);
-    private readonly HorizontalStackLayout sets = new() { Spacing = 12, HorizontalOptions = LayoutOptions.Center };
-    private readonly BoxView line = new() { Color = Color.FromArgb("#424640") };
+    private readonly Label leftPoints = PointLabel();
+    private readonly Label rightPoints = PointLabel();
+    private readonly Label separator = ScoreLabel(13);
+    private readonly HorizontalStackLayout sets = new() { Spacing = 8, HorizontalOptions = LayoutOptions.Center };
+    private readonly BoxView line = new() { Color = Color.FromArgb("#343936") };
     private readonly ImageButton leftPlus;
     private readonly ImageButton rightPlus;
     private readonly ImageButton undo;
@@ -30,7 +32,7 @@ public sealed class ScorePage : ContentPage
         leftPoints.AutomationId = "left-points";
         rightPoints.AutomationId = "right-points";
         separator.Text = "×";
-        separator.TextColor = Color.FromArgb("#949B92");
+        separator.TextColor = Color.FromArgb("#8B938D");
         foreach (var view in new View[] { leftPlus, leftPoints, separator, rightPoints, rightPlus, line, sets, undo })
             face.Add(view);
         Content = face;
@@ -57,7 +59,7 @@ public sealed class ScorePage : ContentPage
         SemanticProperties.SetDescription(button, description);
         button.Clicked += (_, _) => Change(action);
         button.Pressed += (_, _) => button.Opacity = 0.55;
-        button.Released += (_, _) => button.Opacity = 1;
+        button.Released += (_, _) => button.Opacity = id == "undo" ? 0.8 : 1;
         return button;
     }
 
@@ -79,17 +81,18 @@ public sealed class ScorePage : ContentPage
         {
             var label = ScoreLabel(12);
             label.Text = score.ToString();
-            label.TextColor = Color.FromArgb("#949B92");
+            label.TextColor = Color.FromArgb("#929B94");
             SemanticProperties.SetDescription(label, $"Completed set, {score.Left} to {score.Right}");
             sets.Add(label);
         }
-        var current = ScoreLabel(17);
+        var current = ScoreLabel(18);
+        current.FontFamily = "sans-serif-medium";
         current.Text = book.Score.Games.ToString();
         current.AutomationId = "current-set";
         SemanticProperties.SetDescription(current, $"Current set games, {book.Score.Games.Left} to {book.Score.Games.Right}");
         sets.Add(current);
         undo.IsEnabled = book.CanUndo;
-        undo.Opacity = book.CanUndo ? 0.75 : 0.3;
+        undo.Opacity = book.CanUndo ? 0.8 : 0.3;
         Arrange();
     }
 
@@ -103,19 +106,27 @@ public sealed class ScorePage : ContentPage
             AbsoluteLayout.SetLayoutBounds(view, new Rect(offsetX + size * centerX - width / 2,
                 offsetY + size * centerY - height / 2, width, height));
 
-        Place(leftPlus, 0.125, 0.48, 48, 48);
-        Place(leftPoints, 0.33, 0.48, size * 0.23, 62);
-        Place(separator, 0.5, 0.49, size * 0.1, 40);
-        Place(rightPoints, 0.67, 0.48, size * 0.23, 62);
-        Place(rightPlus, 0.875, 0.48, 48, 48);
-        Place(line, 0.5, 0.615, size * 0.43, 0.75);
-        Place(sets, 0.5, 0.685, size * 0.72, 32);
-        Place(undo, 0.5, 0.855, 48, 48);
+        Place(leftPlus, 0.125, 0.43, 48, 48);
+        Place(leftPoints, 0.332, 0.43, size * 0.25, 66);
+        Place(separator, 0.5, 0.43, size * 0.075, 40);
+        Place(rightPoints, 0.668, 0.43, size * 0.25, 66);
+        Place(rightPlus, 0.875, 0.43, 48, 48);
+        Place(line, 0.5, 0.575, size * 0.5, 0.75);
+        Place(sets, 0.5, 0.655, size * 0.76, 32);
+        Place(undo, 0.5, 0.825, 48, 48);
+    }
+
+    private static Label PointLabel()
+    {
+        var label = ScoreLabel(PointFontSize);
+        label.FontFamily = "sans-serif-condensed";
+        label.FontAttributes = FontAttributes.Bold;
+        return label;
     }
 
     private static Label ScoreLabel(double fontSize) => new()
     {
-        FontFamily = "sans-serif-light", FontSize = fontSize, TextColor = Color.FromArgb("#F3F5F0"),
+        FontFamily = "sans-serif", FontSize = fontSize, TextColor = Color.FromArgb("#F4F6F2"),
         HorizontalTextAlignment = TextAlignment.Center, VerticalTextAlignment = TextAlignment.Center,
         VerticalOptions = LayoutOptions.Center, MaxLines = 1,
         LineBreakMode = LineBreakMode.NoWrap, FontAutoScalingEnabled = true

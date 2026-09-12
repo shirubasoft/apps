@@ -11,7 +11,7 @@ A tennis player records points during a match by tapping the left or right plus 
 The supplied sketch defines the single screen: two point scores, one plus button per side, a divider, a small games/set score, and undo beneath. No player names, match completion screen, menus, settings, or other features. Swipe right creates a new match; swipe left opens the previous match. Match scoring and undo history persist locally.
 
 ## Appearance
-Preserve the sketch’s composition with a polished, minimal finish. Large light-weight score numerals lead, plus buttons have quiet rounded outlines, and the small score and undo recede. Keep the black background and restrained white/gray palette.
+Preserve the sketch’s composition with a minimal black-and-white finish. Points and the plus controls lead; the games row and undo have less visual emphasis. The scoring screen must remain legible during a quick glance on court.
 
 ## Scoring assumption
 Standard advantage games and a seven-point tiebreak at six games each. The small row shows games in the current set alongside completed set scores. Matches continue until the user starts another one. The curved arrow undoes the last point.
