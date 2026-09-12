@@ -1,0 +1,119 @@
+name: Tennis Watch CI
+
+on:
+  push:
+    branches: [main]
+    paths: [tennis-watch/**, .github/workflows/tennis-watch-ci.yml, .github/workflows/tennis-watch-release.yml]
+  pull_request:
+    paths: [tennis-watch/**, .github/workflows/tennis-watch-ci.yml, .github/workflows/tennis-watch-release.yml]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  release-version:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/semantic-release-version.yml
+    with:
+      application-directory: tennis-watch
+      tag-prefix: tennis-watch-v
+    secrets: inherit
+
+  build-test-apk:
+    needs: release-version
+    if: always() && (needs.release-version.result == 'success' || needs.release-version.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: tennis-watch
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: tennis-watch/global.json
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: tennis-watch/src/TennisWatch/global.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install Android workload
+        working-directory: tennis-watch/src/TennisWatch
+        run: dotnet workload install maui-android --skip-manifest-update
+      - name: Build, test, and package
+        env:
+          RELEASE_VERSION: ${{ needs.release-version.outputs.version }}
+        run: |
+          if [[ -n "$RELEASE_VERSION" ]]; then
+            ./build.sh --release-version "$RELEASE_VERSION"
+          else
+            ./build.sh
+          fi
+      - name: Detect covered input changes
+        id: covered
+        if: github.event_name == 'pull_request'
+        env:
+          TARGET_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git cat-file -e "$TARGET_SHA:tennis-watch/tests/TennisWatch.Tests/TennisWatch.Tests.csproj" 2>/dev/null &&
+            ! git diff --quiet "$TARGET_SHA"...HEAD -- src/TennisWatch.Core tests Directory.Build.props Directory.Packages.props global.json; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Fetch base coverage
+        id: base-coverage
+        if: steps.covered.outputs.changed == 'true'
+        continue-on-error: true
+        env:
+          CRAP_SCORE_API_URL: ${{ github.api_url }}
+          CRAP_SCORE_GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          dotnet run --project ../tools/CrapScore/CrapScore.csproj -c Release --no-build --
+          download-artifact ${{ github.repository }} ${{ github.event.pull_request.base.sha }}
+          ../artifacts/tennis-watch-base-coverage tennis-watch-crap-score
+      - uses: actions/checkout@v7
+        if: steps.covered.outputs.changed == 'true' && steps.base-coverage.outcome == 'failure'
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: artifacts/tennis-watch-base
+      - uses: actions/setup-dotnet@v5
+        if: steps.covered.outputs.changed == 'true' && steps.base-coverage.outcome == 'failure'
+        with:
+          global-json-file: artifacts/tennis-watch-base/tennis-watch/global.json
+      - name: Measure base coverage
+        if: steps.covered.outputs.changed == 'true' && steps.base-coverage.outcome == 'failure'
+        working-directory: artifacts/tennis-watch-base/tennis-watch
+        run: >-
+          dotnet test tests/TennisWatch.Tests/TennisWatch.Tests.csproj -c Release
+          --collect:"XPlat Code Coverage"
+          --results-directory ${{ github.workspace }}/artifacts/tennis-watch-base-coverage
+      - name: Check CRAP reduction
+        if: steps.covered.outputs.changed == 'true'
+        run: >-
+          dotnet run --project ../tools/CrapScore/CrapScore.csproj -c Release --no-build --
+          artifacts/test-results --base-reports ../artifacts/tennis-watch-base-coverage --target 5
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tennis-watch-build
+          path: |
+            tennis-watch/artifacts/TennisWatch.apk
+            tennis-watch/artifacts/coverage/crap-score.md
+            tennis-watch/artifacts/release-version.txt
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tennis-watch-crap-score-${{ github.event.pull_request.head.sha || github.sha }}
+          path: tennis-watch/artifacts/test-results/**/coverage.cobertura.xml
+          if-no-files-found: error

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TennisWatch.AppHost/TennisWatch.AppHost.csproj" />
+    <Project Path="src/TennisWatch.Core/TennisWatch.Core.csproj" />
+    <Project Path="src/TennisWatch/TennisWatch.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TennisWatch.Tests/TennisWatch.Tests.csproj" />
+  </Folder>
+</Solution>
