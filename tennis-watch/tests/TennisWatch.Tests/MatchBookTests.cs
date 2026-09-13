@@ -69,7 +69,7 @@ public sealed class MatchBookTests
     [InlineData(100, 80, SwipeAction.None)]
     [InlineData(5, 100, SwipeAction.None)]
     public void Only_deliberate_horizontal_swipes_navigate(float dx, float dy, SwipeAction expected) =>
-        Assert.Equal(expected, MatchSwipe.Recognize(SwipeAxis.Horizontal, dx, dy, 225));
+        Assert.Equal(expected, MatchSwipe.Recognize(SwipeAxis.Horizontal, dx, dy));
 
     [Theory]
     [InlineData(-1, 0)]

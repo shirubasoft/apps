@@ -51,6 +51,7 @@ public sealed class MainActivity : MauiAppCompatActivity
                 moved = false;
                 axis = SwipeAxis.None;
                 suppressed = page.IsAnimating;
+                if (!suppressed) page.BeginSwipe();
                 return suppressed || base.DispatchTouchEvent(e);
             case MotionEventActions.PointerDown:
                 CancelChildTouch(e);

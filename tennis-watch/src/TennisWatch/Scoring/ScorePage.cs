@@ -8,8 +8,9 @@ public sealed class ScorePage : ContentPage
     private readonly MatchFile storage = new(Path.Combine(FileSystem.AppDataDirectory, "matches.json"));
     private readonly MatchBook book;
     private readonly Grid viewport = new() { BackgroundColor = Colors.Black, IsClippedToBounds = true };
-    private readonly AbsoluteLayout deleteLayer = new() { InputTransparent = true, IsVisible = false };
-    private readonly Image trash = new() { Source = "trash.png", Aspect = Aspect.AspectFit, AutomationId = "delete-preview" };
+    private readonly DeletePreview deletePreview = new();
+    private readonly MatchDeleteHold deleteHold = new();
+    private readonly IDispatcherTimer holdTimer;
     private ScoreFace current;
     private ScoreFace incoming;
     private SwipeAction previewAction;
@@ -29,16 +30,25 @@ public sealed class ScorePage : ContentPage
         incoming = CreateFace();
         incoming.InputTransparent = true;
         incoming.IsVisible = false;
-        deleteLayer.Add(trash);
-        viewport.Add(deleteLayer);
         viewport.Add(incoming);
         viewport.Add(current);
-        viewport.SizeChanged += (_, _) => ArrangeTrash();
+        viewport.Add(deletePreview);
         Content = viewport;
         current.Render(book.Current);
+        holdTimer = Dispatcher.CreateTimer();
+        holdTimer.Interval = TimeSpan.FromMilliseconds(25);
+        holdTimer.Tick += async (_, _) => await ConfirmDeletion();
     }
 
     public bool IsAnimating { get; private set; }
+
+    public void BeginSwipe()
+    {
+        CancelSwipe();
+        deleteHold.Reset();
+    }
+
+    private static TimeSpan GestureTime => TimeSpan.FromMilliseconds(Android.OS.SystemClock.UptimeMillis());
 
     private ScoreFace CreateFace() => new(side => Change(() => book.Award(side)), () => Change(book.Undo));
 
@@ -52,7 +62,7 @@ public sealed class ScorePage : ContentPage
 
     public void Drag(SwipeAxis axis, float x, float y)
     {
-        if (IsAnimating || axis == SwipeAxis.None) return;
+        if (IsAnimating || deleteHold.IsConfirmed || axis == SwipeAxis.None) return;
         if (!dragging)
         {
             dragging = true;
@@ -75,19 +85,19 @@ public sealed class ScorePage : ContentPage
         }
         else
         {
-            current.TranslationY = Math.Clamp(y, -viewport.Height, 0);
-            var progress = Math.Clamp(-y / MatchSwipe.DeleteDistance((float)viewport.Height), 0, 1);
-            deleteLayer.IsVisible = y < 0;
-            trash.Opacity = 0.45 + 0.55 * progress;
-            trash.Scale = 0.8 + 0.2 * progress;
+            deletePreview.Reveal(-y / MatchSwipe.DeleteDistance((float)viewport.Height));
+            deleteHold.Update(MatchSwipe.IsDeleteZone(axis, x, y, (float)viewport.Height), GestureTime);
+            if (!deleteHold.IsWaiting) holdTimer.Stop();
+            else if (!holdTimer.IsRunning) holdTimer.Start();
         }
     }
 
     public async void FinishSwipe(SwipeAxis axis, float x, float y)
     {
-        if (IsAnimating) return;
+        if (IsAnimating || deleteHold.IsConfirmed) return;
         Drag(axis, x, y);
-        var action = MatchSwipe.Recognize(axis, x, y, (float)viewport.Height);
+        StopDeleteHold();
+        var action = MatchSwipe.Recognize(axis, x, y);
         if (action == SwipeAction.PreviousMatch && !book.HasPrevious) action = SwipeAction.None;
         var generation = ++animationGeneration;
         IsAnimating = true;
@@ -108,19 +118,10 @@ public sealed class ScorePage : ContentPage
                     incoming.InputTransparent = true;
                     current.Render(book.Current);
                     break;
-                case SwipeAction.DeleteMatch:
-                    await Move(current, 0, -viewport.Height, 130);
-                    if (generation != animationGeneration) return;
-                    book.DeleteCurrent(DateTimeOffset.Now);
-                    storage.Save(book);
-                    current.Render(book.Current);
-                    deleteLayer.IsVisible = false;
-                    current.TranslationY = viewport.Height;
-                    await Move(current, 0, 0, 180);
-                    break;
                 default:
                     var restingX = previewAction == SwipeAction.NextMatch ? viewport.Width : -viewport.Width;
-                    await Task.WhenAll(Move(current, 0, 0, 160), Move(incoming, restingX, 0, 160));
+                    await Task.WhenAll(Move(current, 0, 0, 160), Move(incoming, restingX, 0, 160),
+                        Move(deletePreview, 0, deletePreview.HiddenOffset, 160));
                     break;
             }
         }
@@ -133,39 +134,84 @@ public sealed class ScorePage : ContentPage
     public void CancelSwipe()
     {
         animationGeneration++;
+        StopDeleteHold();
         current.CancelAnimations();
         incoming.CancelAnimations();
+        deletePreview.CancelAnimations();
+        if (deleteHold.IsConfirmed) current.Render(book.Current);
         ResetMotion();
+    }
+
+    private void StopDeleteHold()
+    {
+        holdTimer.Stop();
+        deleteHold.Cancel();
+    }
+
+    private async Task ConfirmDeletion()
+    {
+        if (!deleteHold.TryConfirm(GestureTime)) return;
+        holdTimer.Stop();
+        IsAnimating = true;
+        var generation = ++animationGeneration;
+        try
+        {
+            book.DeleteCurrent(DateTimeOffset.Now);
+            storage.Save(book);
+            if (Vibration.Default.IsSupported) Vibration.Default.Vibrate(TimeSpan.FromMilliseconds(80));
+            await Task.WhenAll(Move(current, 0, viewport.Height * 0.3, 180, Easing.CubicIn),
+                Fade(current, 0, 180, Easing.CubicIn));
+            if (generation != animationGeneration) return;
+            current.Render(book.Current);
+            current.TranslationY = 0;
+            await Task.WhenAll(Fade(current, 1, 220, Easing.CubicOut),
+                Move(deletePreview, 0, deletePreview.HiddenOffset, 220));
+        }
+        finally
+        {
+            if (generation == animationGeneration) ResetMotion();
+        }
     }
 
     private void ResetMotion()
     {
         current.TranslationX = current.TranslationY = 0;
         incoming.TranslationX = incoming.TranslationY = 0;
+        current.Opacity = incoming.Opacity = 1;
         incoming.IsVisible = false;
-        deleteLayer.IsVisible = false;
+        deletePreview.Reveal(0);
         previewAction = SwipeAction.None;
         dragging = IsAnimating = false;
         current.ResetControls();
     }
 
-    private Task Move(View view, double x, double y, uint milliseconds)
+    private static Task Move(View view, double x, double y, uint milliseconds, Easing? easing = null)
     {
-        var scale = Android.Provider.Settings.Global.GetFloat(Android.App.Application.Context.ContentResolver,
-            Android.Provider.Settings.Global.AnimatorDurationScale, 1);
-        if (scale <= 0)
+        var duration = MotionDuration(milliseconds);
+        if (duration == 0)
         {
             view.TranslationX = x;
             view.TranslationY = y;
             return Task.CompletedTask;
         }
-        return view.TranslateToAsync(x, y, (uint)(milliseconds * Math.Min(scale, 2)), Easing.CubicOut);
+        return view.TranslateToAsync(x, y, duration, easing ?? Easing.CubicOut);
     }
 
-    private void ArrangeTrash()
+    private static Task Fade(View view, double opacity, uint milliseconds, Easing easing)
     {
-        var size = Math.Min(viewport.Width, viewport.Height);
-        AbsoluteLayout.SetLayoutBounds(trash, new Rect((viewport.Width - 48) / 2,
-            (viewport.Height - size) / 2 + size * 0.8 - 24, 48, 48));
+        var duration = MotionDuration(milliseconds);
+        if (duration == 0)
+        {
+            view.Opacity = opacity;
+            return Task.CompletedTask;
+        }
+        return view.FadeToAsync(opacity, duration, easing);
+    }
+
+    private static uint MotionDuration(uint milliseconds)
+    {
+        var scale = Android.Provider.Settings.Global.GetFloat(Android.App.Application.Context.ContentResolver,
+            Android.Provider.Settings.Global.AnimatorDurationScale, 1);
+        return (uint)(milliseconds * Math.Clamp(scale, 0, 2));
     }
 }
