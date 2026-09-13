@@ -9,6 +9,7 @@ colors:
   separator: "#8B938D"
   divider: "#343936"
   deletion: "#FF6B6B"
+  on-deletion: "#111511"
 typography:
   display:
     fontFamily: "sans-serif-condensed"
@@ -82,7 +83,8 @@ The palette uses off-white and green-tinted grays on an OLED black ground.
 | `secondary` | Completed sets and undo stroke |
 | `separator` | Small multiplication sign between point scores |
 | `divider` | Thin line between points and games |
-| `deletion` | Trash icon revealed by an upward drag |
+| `deletion` | Semicircle raised by an upward drag |
+| `on-deletion` | Trash icon on the red semicircle |
 
 ## Typography
 
@@ -123,7 +125,9 @@ Each plus sits on a filled rounded rectangle, 38dp wide and 42dp high, centered 
 
 Horizontal dragging moves the entire score face with the finger and reveals the adjacent match. Left advances through history and previews a fresh match at the newest end. Right shows previous matches. At the oldest match, a rightward drag moves the face at 18% of the finger distance and springs back. A completed horizontal swipe settles in 150ms; an incomplete swipe returns in 160ms.
 
-Upward dragging reveals a red, 48dp trash icon centered at 80% height. Its opacity rises from 0.45 to 1 and its scale from 0.8 to 1 as the drag approaches the deletion threshold. Release beyond 45% of the viewport height, with a minimum of 96dp, deletes the match. The score exits upward in 130ms, and the selected remaining match enters from below in 180ms. A short swipe or a return below the threshold cancels deletion. All settling uses cubic ease-out and respects Android's animator-duration setting, including disabled animations.
+Upward dragging raises a solid red semicircle over the stationary score. Its curved top stops at the vertical midpoint. The circle diameter matches the shorter display dimension; its top rests at half the viewport height when fully raised. A dark, 48dp trash icon is centered horizontally, 27% of the circle diameter below that top. The shape and icon translate together without fading or scaling.
+
+Holding a deliberate upward drag at half the display height, with a minimum of 96dp, for one continuous second deletes the match and produces an 80ms vibration. Releasing, pulling back, adding another finger, or leaving the app before confirmation cancels the hold. One gesture can delete at most one match. The semicircle retreats in 160ms after confirmation or cancellation. Settling uses cubic ease-out and respects Android's animator-duration setting; the confirmation delay always remains one second.
 
 ## Launcher icon
 
