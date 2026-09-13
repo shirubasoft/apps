@@ -15,18 +15,25 @@ public sealed class SwipeTests
         Assert.Equal(expected, MatchSwipe.Axis(x, y));
 
     [Theory]
-    [InlineData(SwipeAxis.Vertical, 0, -102, 225, SwipeAction.DeleteMatch)]
-    [InlineData(SwipeAxis.Vertical, 0, -101, 225, SwipeAction.None)]
-    [InlineData(SwipeAxis.Vertical, 0, -96, 192, SwipeAction.DeleteMatch)]
-    [InlineData(SwipeAxis.Vertical, 0, -95, 192, SwipeAction.None)]
-    [InlineData(SwipeAxis.Vertical, 0, -110, 250, SwipeAction.None)]
-    [InlineData(SwipeAxis.Vertical, 0, -113, 250, SwipeAction.DeleteMatch)]
-    [InlineData(SwipeAxis.Vertical, 0, 200, 225, SwipeAction.None)]
-    [InlineData(SwipeAxis.Vertical, 100, -150, 225, SwipeAction.None)]
-    [InlineData(SwipeAxis.Vertical, 80, -150, 225, SwipeAction.DeleteMatch)]
-    [InlineData(SwipeAxis.Horizontal, 0, -200, 225, SwipeAction.None)]
-    [InlineData(SwipeAxis.None, 0, -200, 225, SwipeAction.None)]
-    public void Delete_requires_a_completed_upward_swipe_on_the_locked_axis(
-        SwipeAxis axis, float x, float y, float height, SwipeAction expected) =>
-        Assert.Equal(expected, MatchSwipe.Recognize(axis, x, y, height));
+    [InlineData(SwipeAxis.Vertical, 0, -112.5f, 225, true)]
+    [InlineData(SwipeAxis.Vertical, 0, -112, 225, false)]
+    [InlineData(SwipeAxis.Vertical, 0, -96, 192, true)]
+    [InlineData(SwipeAxis.Vertical, 0, -95, 192, false)]
+    [InlineData(SwipeAxis.Vertical, 0, -124, 250, false)]
+    [InlineData(SwipeAxis.Vertical, 0, -125, 250, true)]
+    [InlineData(SwipeAxis.Vertical, 0, 200, 225, false)]
+    [InlineData(SwipeAxis.Vertical, 100, -150, 225, false)]
+    [InlineData(SwipeAxis.Vertical, 80, -150, 225, true)]
+    [InlineData(SwipeAxis.Horizontal, 0, -200, 225, false)]
+    [InlineData(SwipeAxis.None, 0, -200, 225, false)]
+    public void Hold_starts_only_after_a_deliberate_upward_drag_reaches_the_midpoint(
+        SwipeAxis axis, float x, float y, float height, bool expected) =>
+        Assert.Equal(expected, MatchSwipe.IsDeleteZone(axis, x, y, height));
+
+    [Theory]
+    [InlineData(-120)]
+    [InlineData(-300)]
+    [InlineData(300)]
+    public void Releasing_a_vertical_swipe_never_deletes(float y) =>
+        Assert.Equal(SwipeAction.None, MatchSwipe.Recognize(SwipeAxis.Vertical, 0, y));
 }

@@ -1,6 +1,6 @@
 namespace TennisWatch.Core.Matches;
 
-public enum SwipeAction { None, NextMatch, PreviousMatch, DeleteMatch }
+public enum SwipeAction { None, NextMatch, PreviousMatch }
 public enum SwipeAxis { None, Horizontal, Vertical }
 
 public static class MatchSwipe
@@ -15,17 +15,16 @@ public static class MatchSwipe
         return SwipeAxis.None;
     }
 
-    public static float DeleteDistance(float height) => Math.Max(96, height * 0.45f);
+    public static float DeleteDistance(float height) => Math.Max(96, height * 0.5f);
 
-    public static SwipeAction Recognize(SwipeAxis axis, float deltaX, float deltaY, float height)
+    public static bool IsDeleteZone(SwipeAxis axis, float deltaX, float deltaY, float height) =>
+        axis == SwipeAxis.Vertical && Axis(deltaX, deltaY) == SwipeAxis.Vertical &&
+        -deltaY >= DeleteDistance(height);
+
+    public static SwipeAction Recognize(SwipeAxis axis, float deltaX, float deltaY)
     {
-        if (axis != Axis(deltaX, deltaY)) return SwipeAction.None;
-        return axis switch
-        {
-            SwipeAxis.Horizontal when Math.Abs(deltaX) >= 48 =>
-                deltaX < 0 ? SwipeAction.NextMatch : SwipeAction.PreviousMatch,
-            SwipeAxis.Vertical when -deltaY >= DeleteDistance(height) => SwipeAction.DeleteMatch,
-            _ => SwipeAction.None
-        };
+        if (axis != SwipeAxis.Horizontal || Axis(deltaX, deltaY) != SwipeAxis.Horizontal ||
+            Math.Abs(deltaX) < 48) return SwipeAction.None;
+        return deltaX < 0 ? SwipeAction.NextMatch : SwipeAction.PreviousMatch;
     }
 }
