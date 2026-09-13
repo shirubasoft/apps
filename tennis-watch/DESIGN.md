@@ -8,12 +8,21 @@ colors:
   secondary: "#929B94"
   separator: "#8B938D"
   divider: "#343936"
+  deletion: "#FF6B6B"
 typography:
   display:
     fontFamily: "sans-serif-condensed"
     fontSize: "48sp"
     fontWeight: 700
     fontFeature: "tnum"
+  match-number:
+    fontFamily: "sans-serif-medium"
+    fontSize: "14sp"
+    fontWeight: 500
+  match-date:
+    fontFamily: "sans-serif"
+    fontSize: "11sp"
+    fontWeight: 400
   games:
     fontFamily: "sans-serif-medium"
     fontSize: "18sp"
@@ -52,12 +61,12 @@ components:
 
 **Creative North Star: "Monochrome sports instrument"**
 
-Condensed bold point scores and filled graphite plus controls lead a black watch face. Current games, completed sets, and a small gray undo arrow sit below. The composition supports a quick glance and a tap on court.
+Condensed bold point scores and filled graphite plus controls lead a black watch face. A small match number and creation date sit above; current games, completed sets, and a gray undo arrow sit below. The composition supports a quick glance and a tap on court.
 
 **Key Characteristics:**
 
 - Condensed point numerals hold the strongest visual emphasis.
-- Fixed touch areas surround compact artwork, leaving the upper watch face open.
+- Fixed touch areas surround compact artwork. The match number and date occupy the space above the points.
 
 ## Colors
 
@@ -73,12 +82,13 @@ The palette uses off-white and green-tinted grays on an OLED black ground.
 | `secondary` | Completed sets and undo stroke |
 | `separator` | Small multiplication sign between point scores |
 | `divider` | Thin line between points and games |
+| `deletion` | Trash icon revealed by an upward drag |
 
 ## Typography
 
-Android's condensed bold display face gives points their width and weight. Current games use the medium face; the separator and completed sets use regular sans-serif. The frontmatter defines each role's size and weight.
+Android's condensed bold display face gives points their width and weight. The match number and current games use the medium face; the date, separator, and completed sets use regular sans-serif. The frontmatter defines each role's size and weight.
 
-Labels are centered, single-line, and support system font scaling. All labels request tabular figures and disable native font padding. Point labels use native uniform text fitting from 24sp to the display size in 1sp increments, so advantage text and multi-digit tiebreak scores fit their fixed bounds.
+Labels are centered, single-line, and support system font scaling. All labels request tabular figures and disable native font padding. Point labels use native uniform text fitting from 24sp to the display size in 1sp increments, so advantage text and multi-digit tiebreak scores fit their fixed bounds. Match metadata fits from 9sp to its specified size. The date uses the current locale and stays secondary gray.
 
 **The score hierarchy rule.** Points lead; current games are larger and brighter than completed sets. Keep the multiplication separator smaller and dimmer than the points.
 
@@ -86,9 +96,11 @@ Labels are centered, single-line, and support system font scaling. All labels re
 
 The layout centers a square whose side is the shorter display dimension. Coordinates below are relative to that square. Geometry uses dp; type uses sp.
 
+The match number is centered at 18.5% height in a box 65% wide and 22dp high. The creation date is centered at 27.5% height in a box 70% wide and 20dp high.
+
 The point row shares a center at 43% height. Plus controls sit at 12.5% and 87.5% width. Point labels sit at 33.2% and 66.8%, each in a box 25% of the square's width and 66dp high. The separator sits at 50% width in a box 7.5% wide and 40dp high.
 
-The centered divider spans 50% of the square at 57.5% height and is 0.75dp thick. The games row sits at 65.5% height in a box 76% wide and 32dp high, with the score-entry gap between labels. Undo sits at 50% width and 82.5% height. The space above the point row remains open.
+The centered divider spans 50% of the square at 57.5% height and is 0.75dp thick. The games row sits at 65.5% height in a box 76% wide and 32dp high, with the score-entry gap between labels. Undo sits at 50% width and 82.5% height.
 
 **The touch area rule.** Keep the fixed control dimensions in the frontmatter when adjusting screen proportions. The artwork is smaller than its touch area.
 
@@ -106,6 +118,16 @@ Each plus sits on a filled rounded rectangle, 38dp wide and 42dp high, centered 
 - Point labels retain equal bounds and native fitting. Their accessible descriptions identify the side and current point text.
 - The games row shows the latest two completed sets in the smaller secondary style, followed by current games in the brighter medium face. Accessible descriptions distinguish completed sets from current games.
 - Undo uses the same touch dimensions as the plus controls. Enabled opacity is 0.8, pressed opacity is 0.55, and disabled opacity is 0.3. Release restores 0.8.
+
+## Motion and deletion
+
+Horizontal dragging moves the entire score face with the finger and reveals the adjacent match. Left advances through history and previews a fresh match at the newest end. Right shows previous matches. At the oldest match, a rightward drag moves the face at 18% of the finger distance and springs back. A completed horizontal swipe settles in 150ms; an incomplete swipe returns in 160ms.
+
+Upward dragging reveals a red, 48dp trash icon centered at 80% height. Its opacity rises from 0.45 to 1 and its scale from 0.8 to 1 as the drag approaches the deletion threshold. Release beyond 45% of the viewport height, with a minimum of 96dp, deletes the match. The score exits upward in 130ms, and the selected remaining match enters from below in 180ms. A short swipe or a return below the threshold cancels deletion. All settling uses cubic ease-out and respects Android's animator-duration setting, including disabled animations.
+
+## Launcher icon
+
+The approved raster icon is a yellow-green tennis ball with ivory seams on black. Keep the source image and embedded generation prompt together. The launcher artwork is the only colored element outside the transient red deletion cue.
 
 ## Do's and Don'ts
 

@@ -2,7 +2,11 @@
 
 A single-screen tennis scorer for Samsung Galaxy Watch 5 Pro, built with .NET MAUI for Wear OS.
 
-Tap either **+** to award that side a point. The arrow undoes the last point, including a point that ended a game or set. Swipe right to create a new match. Swipe left to open the previous match. Swiping right always appends a fresh match, including when viewing an older one.
+Tap either **+** to award that side a point. The arrow undoes the last point, including a point that ended a game or set. Swipe left to open the next match, or create one when viewing the newest match. Swipe right to open the previous match. The score follows the drag and slides into place when the swipe completes.
+
+Swipe up to reveal the red trash icon. Release after dragging at least 45% of the display height, with a minimum of 96dp, to delete the current match. Shorter swipes snap back. Deletion opens the previous match, or the next when deleting the first. Deleting the only match creates a fresh one.
+
+The header shows the match number and creation date. Numbers remain stable after deletion. Matches saved by the first version retain their scores and show "Date unavailable", because that version did not record dates.
 
 Points use 0, 15, 30, 40 and AD. Games require a two-point lead. Sets require six games with a two-game lead, with a first-to-seven, win-by-two tiebreak at 6–6. The small row shows current games in white and the two most recent completed sets in gray. Scoring continues after each set. Every match and its undo history are saved locally after each action.
 
