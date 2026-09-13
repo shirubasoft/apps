@@ -138,6 +138,7 @@ public sealed class ScorePage : ContentPage
         current.CancelAnimations();
         incoming.CancelAnimations();
         deletePreview.CancelAnimations();
+        if (deleteHold.IsConfirmed) current.Render(book.Current);
         ResetMotion();
     }
 
@@ -158,8 +159,13 @@ public sealed class ScorePage : ContentPage
             book.DeleteCurrent(DateTimeOffset.Now);
             storage.Save(book);
             if (Vibration.Default.IsSupported) Vibration.Default.Vibrate(TimeSpan.FromMilliseconds(80));
+            await Task.WhenAll(Move(current, 0, viewport.Height * 0.3, 180, Easing.CubicIn),
+                Fade(current, 0, 180, Easing.CubicIn));
+            if (generation != animationGeneration) return;
             current.Render(book.Current);
-            await Move(deletePreview, 0, deletePreview.HiddenOffset, 160);
+            current.TranslationY = 0;
+            await Task.WhenAll(Fade(current, 1, 220, Easing.CubicOut),
+                Move(deletePreview, 0, deletePreview.HiddenOffset, 220));
         }
         finally
         {
@@ -171,6 +177,7 @@ public sealed class ScorePage : ContentPage
     {
         current.TranslationX = current.TranslationY = 0;
         incoming.TranslationX = incoming.TranslationY = 0;
+        current.Opacity = incoming.Opacity = 1;
         incoming.IsVisible = false;
         deletePreview.Reveal(0);
         previewAction = SwipeAction.None;
@@ -178,16 +185,33 @@ public sealed class ScorePage : ContentPage
         current.ResetControls();
     }
 
-    private Task Move(View view, double x, double y, uint milliseconds)
+    private static Task Move(View view, double x, double y, uint milliseconds, Easing? easing = null)
     {
-        var scale = Android.Provider.Settings.Global.GetFloat(Android.App.Application.Context.ContentResolver,
-            Android.Provider.Settings.Global.AnimatorDurationScale, 1);
-        if (scale <= 0)
+        var duration = MotionDuration(milliseconds);
+        if (duration == 0)
         {
             view.TranslationX = x;
             view.TranslationY = y;
             return Task.CompletedTask;
         }
-        return view.TranslateToAsync(x, y, (uint)(milliseconds * Math.Min(scale, 2)), Easing.CubicOut);
+        return view.TranslateToAsync(x, y, duration, easing ?? Easing.CubicOut);
+    }
+
+    private static Task Fade(View view, double opacity, uint milliseconds, Easing easing)
+    {
+        var duration = MotionDuration(milliseconds);
+        if (duration == 0)
+        {
+            view.Opacity = opacity;
+            return Task.CompletedTask;
+        }
+        return view.FadeToAsync(opacity, duration, easing);
+    }
+
+    private static uint MotionDuration(uint milliseconds)
+    {
+        var scale = Android.Provider.Settings.Global.GetFloat(Android.App.Application.Context.ContentResolver,
+            Android.Provider.Settings.Global.AnimatorDurationScale, 1);
+        return (uint)(milliseconds * Math.Clamp(scale, 0, 2));
     }
 }

@@ -127,7 +127,9 @@ Horizontal dragging moves the entire score face with the finger and reveals the 
 
 Upward dragging raises a solid red semicircle over the stationary score. Its curved top stops at the vertical midpoint. The circle diameter matches the shorter display dimension; its top rests at half the viewport height when fully raised. A dark, 48dp trash icon is centered horizontally, 27% of the circle diameter below that top. The shape and icon translate together without fading or scaling.
 
-Holding a deliberate upward drag at half the display height, with a minimum of 96dp, for one continuous second deletes the match and produces an 80ms vibration. Releasing, pulling back, adding another finger, or leaving the app before confirmation cancels the hold. One gesture can delete at most one match. The semicircle retreats in 160ms after confirmation or cancellation. Settling uses cubic ease-out and respects Android's animator-duration setting; the confirmation delay always remains one second.
+Holding a deliberate upward drag at half the display height, with a minimum of 96dp, for one continuous second deletes the match and produces an 80ms vibration. Releasing, pulling back, adding another finger, or leaving the app before confirmation cancels the hold. One gesture can delete at most one match. Cancellation returns the semicircle in 160ms with cubic ease-out.
+
+At confirmation, the deleted score sinks toward the trash, moving down 30% of the viewport height and fading out over 180ms with cubic ease-in. The raised red semicircle covers the departing score. Once it has disappeared, the remaining match fades in at its resting position while the semicircle recedes, both over 220ms with cubic ease-out. Interrupting this transition shows the remaining match at full opacity. Android's animator-duration setting scales all motion; disabled animations show the result immediately. The confirmation delay always remains one second.
 
 ## Launcher icon
 

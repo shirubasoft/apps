@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-13T03:26:43Z",
+  "generatedAt": "2026-09-13T03:38:19Z",
   "title": "Design System: Tennis Watch",
   "extensions": {
     "colorMeta": {
@@ -151,7 +151,7 @@
     {
       "name": "Delete preview",
       "kind": "custom",
-      "description": "A red semicircle rises over the score to the screen midpoint. Hold it there for one second to confirm deletion with an 80ms vibration; releasing early or pulling back cancels.",
+      "description": "A red semicircle rises over the score to the screen midpoint. Hold it there for one second to confirm deletion with an 80ms vibration. The deleted score sinks and fades into the trash before the remaining match appears as the semicircle recedes. Releasing early or pulling back cancels.",
       "html": "<div class=\"ds-delete-face\" aria-label=\"Hold to delete match\"><div class=\"ds-delete-background\"></div><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\">\n  <g fill=\"none\" stroke=\"#111511\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n    <path d=\"M12 15h24M19 15v-4h10v4M15 15l2 24h14l2-24M21 21v12M27 21v12\"/>\n  </g>\n</svg></div>",
       "css": ".ds-delete-face { position: relative; width: 225px; height: 225px; border-radius: 50%; overflow: hidden; background: #000000; } .ds-delete-background { position: absolute; top: 50%; left: 0; width: 225px; height: 225px; border-radius: 50%; background: #FF6B6B; } .ds-delete-face svg { position: absolute; left: 50%; top: 77%; width: 48px; height: 48px; transform: translate(-50%, -50%); }"
     }
@@ -177,7 +177,7 @@
       {
         "name": "Swipe feedback",
         "section": "motion",
-        "body": "Track the finger when navigating matches or raising the red deletion semicircle. A horizontal swipe settles in 150ms; an incomplete swipe returns in 160ms. Up raises the semicircle to the screen midpoint. Hold there continuously for one second to delete with an 80ms vibration. Releasing early or pulling back cancels. Respect disabled system animations without shortening the confirmation delay."
+        "body": "Track the finger when navigating matches or raising the red deletion semicircle. A horizontal swipe settles in 150ms; an incomplete swipe returns in 160ms. Up raises the semicircle to the screen midpoint. Hold there continuously for one second to delete with an 80ms vibration. The deleted score moves down 30% of the viewport and fades out over 180ms with cubic ease-in. The remaining match then fades in as the semicircle recedes over 220ms with cubic ease-out. Releasing early or pulling back cancels. Respect disabled system animations without shortening the confirmation delay."
       }
     ],
     "dos": [
