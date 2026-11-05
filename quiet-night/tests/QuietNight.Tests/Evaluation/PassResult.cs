@@ -5,7 +5,7 @@ using QuietNight.Core.Masking;
 namespace QuietNight.Tests.Evaluation;
 
 /// <summary>
-/// The verdict on one pass of one category under acceptance criteria version 2:
+/// The verdict on one pass of one category under acceptance criteria version 3:
 /// <list type="number">
 /// <item>every target sound that needs masking for at least half a second is recognised as a target, and all of them
 /// but one (when there are three or more) as the right category;</item>
@@ -15,13 +15,14 @@ namespace QuietNight.Tests.Evaluation;
 /// coverage through 250 ms of Bluetooth delay within 10 points of the oracle's; the oracle has the same masker, delay,
 /// boost limit and release, but is told exactly when a target is present and how loud the room is, so it marks what no
 /// causal controller could cover;</item>
-/// <item>the worst-covered target sound is within 15 points of the oracle at once;</item>
+/// <item>every target sound that needs masking at all, however briefly, is within 15 points of the oracle at once;</item>
 /// <item>no sound that must stay audible is noticeably boosted for more than one second in total;</item>
 /// <item>the masker is noticeably boosted for at most 2 % of the quiet night, counting false alarms' tails and the
-/// room's own swells, and leaving out only true target sounds and their release.</item>
+/// room's own swells, and leaving out only true target sounds and the time the oracle's boost for them takes to settle.</item>
 /// </list>
-/// Version 1 (absolute 95 % and 85 % coverage, protected sounds judged after their first second, and quiet time
-/// excluding every event's tail and the room's swells) is still computed and reported for comparison.
+/// Version 2 differed only in judging the worst sound among those needing masking for half a second, and in leaving out
+/// a fixed 13 s after each target. Version 1 (absolute 95 % and 85 % coverage, protected sounds judged after their first
+/// second, and quiet time excluding every event's tail and the room's swells) is reported too.
 /// </summary>
 public sealed record PassResult(
     NightScenario Scenario,
@@ -30,6 +31,7 @@ public sealed record PassResult(
     double QuietBoostedShare,
     double CoveredQuietBoostedShare,
     double NightQuietBoostedShare,
+    double NightQuietBoostedShareVersion2,
     double NightBoostedShare,
     double HopMeanMilliseconds,
     double VerdictMedianMilliseconds)
@@ -72,8 +74,11 @@ public sealed record PassResult(
 
     public double OracleThroughBluetooth => Covered(Targets.Sum(t => t.Whole.OracleLate), Targets.Sum(t => t.Whole.Needing));
 
-    /// <summary>The recognisable target sound whose coverage falls furthest below the oracle's.</summary>
-    public double WorstEventOracleGap => Recognisable.Select(t => t.Whole.OracleShare - t.Whole.AppShare).DefaultIfEmpty(0).Max();
+    /// <summary>The target sound whose coverage falls furthest below the oracle's.</summary>
+    public double WorstEventOracleGap => Targets.Where(t => t.Whole.Needing > 0).Select(t => t.Whole.OracleShare - t.Whole.AppShare).DefaultIfEmpty(0).Max();
+
+    /// <summary>Version 2's worst sound, among those needing masking for half a second.</summary>
+    public double WorstRecognisableOracleGap => Recognisable.Select(t => t.Whole.OracleShare - t.Whole.AppShare).DefaultIfEmpty(0).Max();
 
     public double LongestProtectedBoostSeconds => Others.Select(o => o.BoostedSeconds).DefaultIfEmpty(0).Max();
 
@@ -88,6 +93,12 @@ public sealed record PassResult(
         Boosted(Others.Sum(o => o.BoostedShare * (o.Event.EndHop - o.Event.StartHop)), Others.Sum(o => o.Event.EndHop - o.Event.StartHop));
 
     public double OtherBoostedAfterFirstSecond => Boosted(Others.Sum(o => o.BoostedAfterFirstSecond), Others.Sum(o => o.HopsAfterFirstSecond));
+
+    public bool PassedVersion2 =>
+        Detected == Recognisable.Count && CorrectlyRecognised >= RequiredCorrect && MedianReactionMilliseconds <= MaxMedianReactionMilliseconds &&
+        WholeAtOnce >= OracleAtOnce - MaxOracleGapAtOnce && WholeThroughBluetooth >= OracleThroughBluetooth - MaxOracleGapThroughBluetooth &&
+        WorstRecognisableOracleGap <= MaxWorstEventOracleGap && LongestProtectedBoostSeconds <= MaxProtectedBoostedSeconds &&
+        NightQuietBoostedShareVersion2 <= MaxQuietBoostedShare;
 
     public bool PassedVersion1 =>
         Detected == Recognisable.Count && CorrectlyRecognised >= RequiredCorrect && MedianReactionMilliseconds <= MaxMedianReactionMilliseconds &&
@@ -118,6 +129,7 @@ public sealed record PassResult(
         var bluetoothHops = ListeningFormat.Hops(BluetoothDelay);
         var scores = scenario.Events.Select(e => EventScore.Of(trace, e, settings, bluetoothHops)).ToList();
         int quietHops = 0, quietBoosted = 0, coveredHops = 0, coveredBoosted = 0, nightQuietHops = 0, nightQuietBoosted = 0, nightHops = 0, nightBoosted = 0;
+        int referenceQuietHops = 0, referenceQuietBoosted = 0;
         var settle = ListeningFormat.Hops(NightScenario.Settle);
         var after = ListeningFormat.Hops(SettleAfterEvent);
         var allowance = ListeningFormat.Hops(RoomSwellAllowance);
@@ -140,6 +152,11 @@ public sealed record PassResult(
                 nightQuietHops++;
                 if (boosted) nightQuietBoosted++;
             }
+            if (!inSound && trace.MaxOracleBoostAt(h) <= EventScore.NoticeableBoostDb)
+            {
+                referenceQuietHops++;
+                if (boosted) referenceQuietBoosted++;
+            }
             if (scenario.Events.Any(e => h >= e.StartHop && h < e.EndHop + after)) continue;
             quietHops++;
             if (boosted) quietBoosted++;
@@ -154,6 +171,7 @@ public sealed record PassResult(
             [.. scores.Where(s => !s.Event.Noise.IsTarget())],
             Boosted(quietBoosted, quietHops),
             Boosted(coveredBoosted, coveredHops),
+            Boosted(referenceQuietBoosted, referenceQuietHops),
             Boosted(nightQuietBoosted, nightQuietHops),
             Boosted(nightBoosted, nightHops),
             trace.HopMilliseconds.Average(),
@@ -161,7 +179,7 @@ public sealed record PassResult(
     }
 
     public string Summary =>
-        $"{Scenario.Category} pass {Scenario.Pass + 1}: {(Passed ? "PASS" : "FAIL")} (v1 {(PassedVersion1 ? "pass" : "fail")}) — recognised {CorrectlyRecognised}/{Recognisable.Count}, " +
+        $"{Scenario.Category} pass {Scenario.Pass + 1}: {(Passed ? "PASS" : "FAIL")} (v2 {(PassedVersion2 ? "pass" : "fail")}, v1 {(PassedVersion1 ? "pass" : "fail")}) — recognised {CorrectlyRecognised}/{Recognisable.Count}, " +
         $"reaction {MedianReactionMilliseconds:F0} ms, coverage {WholeAtOnce:P1}/{OracleAtOnce:P1} oracle at once, {WholeThroughBluetooth:P1}/{OracleThroughBluetooth:P1} via Bluetooth, " +
         $"worst gap {WorstEventOracleGap:P0}, protected boost ≤ {LongestProtectedBoostSeconds:F1} s, quiet night {NightQuietBoostedShare:P1}" +
         (Passed ? "" : $" — {string.Join("; ", Failures)}");

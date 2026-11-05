@@ -161,4 +161,12 @@ public sealed class NightTrace
             max = MathF.Max(max, BoostAt(hop, b));
         return max;
     }
+
+    public float MaxOracleBoostAt(int hop)
+    {
+        var max = 0f;
+        for (var b = 0; b < MaskerBands.Count; b++)
+            max = MathF.Max(max, OracleBoostAt(hop, b));
+        return max;
+    }
 }
