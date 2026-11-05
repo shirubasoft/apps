@@ -61,7 +61,7 @@ public sealed class NightPage : ContentPage
                 Row(Theme.Heading("Strongest boost"), boostValue), boost,
                 Theme.Body("How far the masker may rise above its bedtime level for a loud noise."),
                 Theme.Heading("Reacts to"), sensitivity,
-                Theme.Body("Gentle ignores small rises; Sensitive covers even faint noises.")),
+                Theme.Body("Gentle ignores small rises; Sensitive covers even faint noises. Volume changes apply at once; the strongest boost and reaction apply from the next start.")),
             batteryCard,
             Theme.Body("Wired or Bluetooth earbuds both work. The masker never plays from the phone speaker: the microphone would hear it."));
         toggleCaption.HorizontalTextAlignment = TextAlignment.Center;
@@ -98,7 +98,7 @@ public sealed class NightPage : ContentPage
     {
         settings = next;
         settings.Save();
-        NightSession.Engine?.SetBedtime(settings);
+        NightSession.Engine?.SetVolume(settings.Volume);
         ShowSettings();
     }
 

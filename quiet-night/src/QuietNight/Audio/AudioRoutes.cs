@@ -19,6 +19,8 @@ public static class AudioRoutes
     {
         var audio = (AudioManager?)context.GetSystemService(Context.AudioService);
         var outputs = audio?.GetDevices(GetDevicesTargets.Outputs) ?? [];
-        return outputs.Any(d => EarTypes.Contains(d.Type));
+        return outputs.Any(d => IsEar(d.Type));
     }
+
+    public static bool IsEar(AudioDeviceType type) => EarTypes.Contains(type);
 }

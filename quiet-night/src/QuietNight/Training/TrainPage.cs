@@ -58,6 +58,8 @@ public sealed class TrainPage : ContentPage
     protected override void OnDisappearing()
     {
         player.Stop();
+        // Leaving the tab ends a recording, so the microphone is never held by a page nobody sees.
+        if (recorder is not null) _ = FinishRecordingAsync();
         base.OnDisappearing();
     }
 
@@ -140,10 +142,10 @@ public sealed class TrainPage : ContentPage
             {
                 var audio = recordings.Select(r => new LabeledAudio(ModelStore.Recordings.Load(r), r.Label)).ToList();
                 var current = await ModelStore.HeadsAsync();
-                var (frames, sounds) = await ModelStore.ReplayAsync();
+                var reference = await ModelStore.ReferenceAsync();
                 using var model = new SoundModel(await ModelStore.YamnetAsync(), threads: 2);
                 var trainer = new PersonalTrainer(model, NightSettings.Load().Listener);
-                var outcome = trainer.Train(audio, current, frames, sounds, reporter);
+                var outcome = trainer.Train(audio, current, reference, reporter);
                 if (outcome.Report.Accepted) ModelStore.SavePersonal(outcome.Heads, recordings.Count);
                 return outcome;
             });

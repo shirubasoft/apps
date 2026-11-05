@@ -65,7 +65,26 @@ public sealed class MaskerPlayer : IDisposable
             Fill(b, BufferFrames);
             tracks[b].Play();
         }
+        // Priming played silence; restore whatever levels were set before playback began.
+        for (var b = 0; b < tracks.Length; b++)
+            Apply(b, appliedDb[b], force: true);
         writer.Start();
+    }
+
+    /// <summary>
+    /// Whether every layer is actually being played through earbuds or headphones. Null until Android has routed
+    /// them; false as soon as any layer reaches another output such as the phone speaker.
+    /// </summary>
+    public bool? RoutedToEars()
+    {
+        var known = true;
+        foreach (var track in tracks)
+        {
+            var device = track.RoutedDevice;
+            if (device is null) known = false;
+            else if (!Audio.AudioRoutes.IsEar(device.Type)) return false;
+        }
+        return known ? true : null;
     }
 
     /// <summary>Sets each layer's level in dB relative to full scale.</summary>

@@ -22,6 +22,9 @@ public sealed class NightService : Service
     private NoisyReceiver? noisy;
     private AudioFocusRequestClass? focus;
     private NightEngine? engine;
+    private bool starting;
+    private bool focusGranted;
+    private int generation;
 
     public override IBinder? OnBind(Intent? intent) => null;
 
@@ -32,11 +35,14 @@ public sealed class NightService : Service
             StopNight(null);
             return StartCommandResult.NotSticky;
         }
-        if (engine is not null) return StartCommandResult.NotSticky;
+        if (engine is not null || starting) return StartCommandResult.NotSticky;
+        starting = true;
         CreateChannel();
         StartForeground(NotificationId, Notification("Listening for cats, motorcycles and cars"),
             ForegroundService.TypeMicrophone | ForegroundService.TypeMediaPlayback);
-        _ = StartEngineAsync();
+        // Watch for earbuds disconnecting and take audio focus before a single sample plays.
+        Hold();
+        _ = StartEngineAsync(++generation);
         return StartCommandResult.NotSticky;
     }
 
@@ -46,25 +52,40 @@ public sealed class NightService : Service
         base.OnDestroy();
     }
 
-    private async Task StartEngineAsync()
+    /// <summary>
+    /// Loads the models and starts the engine. A stop while loading bumps <see cref="generation"/>, so a late
+    /// continuation disposes what it built instead of bringing a stopped night back.
+    /// </summary>
+    private async Task StartEngineAsync(int started)
     {
+        NightEngine? created = null;
         try
         {
             var settings = NightSettings.Load();
             var heads = await ModelStore.HeadsAsync();
             var yamnet = await ModelStore.YamnetAsync();
             var layers = await Task.Run(ModelStore.Layers);
-            var created = new NightEngine(this, settings, heads, yamnet, layers);
+            if (started != generation) return;
+            created = new NightEngine(this, settings, heads, yamnet, layers) { FocusGranted = focusGranted };
             created.Published += OnPublished;
             created.Start();
             engine = created;
-            NightSession.Engine = created;
-            Hold();
+            created = null;
+            starting = false;
+            NightSession.Engine = engine;
             NightSession.Report(NightStatus.Idle with { Running = true, Since = DateTimeOffset.Now });
         }
         catch (Exception e) when (e is InvalidOperationException or Java.Lang.Exception or IOException or Microsoft.ML.OnnxRuntime.OnnxRuntimeException)
         {
-            StopNight(e.Message);
+            if (started == generation) StopNight(e.Message);
+        }
+        finally
+        {
+            if (created is not null)
+            {
+                created.Published -= OnPublished;
+                created.Dispose();
+            }
         }
     }
 
@@ -92,11 +113,14 @@ public sealed class NightService : Service
             .SetWillPauseWhenDucked(true)!
             .SetOnAudioFocusChangeListener(new FocusListener(this))!
             .Build();
-        if (focus is not null) audio?.RequestAudioFocus(focus);
+        // Without focus the masker stays silent until it is granted; another app may be playing.
+        focusGranted = focus is not null && audio?.RequestAudioFocus(focus) == AudioFocusRequest.Granted;
     }
 
     private void StopNight(string? problem)
     {
+        generation++;
+        starting = false;
         TearDown();
         NightSession.Report(NightStatus.Idle with { Problem = problem });
         StopForeground(StopForegroundFlags.Remove);
@@ -164,8 +188,9 @@ public sealed class NightService : Service
     {
         public void OnAudioFocusChange(AudioFocus focusChange)
         {
+            service.focusGranted = focusChange == AudioFocus.Gain;
             if (service.engine is { } running)
-                running.Muted = focusChange is AudioFocus.Loss or AudioFocus.LossTransient or AudioFocus.LossTransientCanDuck;
+                running.FocusGranted = service.focusGranted;
         }
     }
 }

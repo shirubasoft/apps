@@ -37,15 +37,24 @@ public sealed class NightEngine : IDisposable
     private AudioRecord? record;
     private int recentPosition;
     private bool recentFull;
+    private readonly CancellationTokenSource stopping = new();
+    private readonly NightSettings session;
+    private readonly Lock disposal = new();
     private volatile bool running;
+    private volatile bool focusGranted;
+    private volatile bool routeVerified;
     private bool inEpisode;
     private volatile bool learnRoom;
+    private bool disposed;
+    private bool modelReleased;
     private float[] bedtime = new float[MaskerBands.Count];
+    private const int RouteCheckHops = 50;
 
     public NightEngine(Context context, NightSettings settings, DetectorHeads heads, byte[] yamnet, float[][] layers)
     {
         this.context = context;
-        SetBedtime(settings);
+        session = settings;
+        SetVolume(settings.Volume);
         var listenerSettings = settings.Listener;
         listener = new NightListener(heads.Frame, listenerSettings);
         model = new SoundModel(yamnet);
@@ -57,15 +66,24 @@ public sealed class NightEngine : IDisposable
 
     public event Action<NightStatus>? Published;
 
-    public bool Muted
+    /// <summary>
+    /// Whether this app holds audio focus. The masker stays silent without it, and until Android confirms every layer is
+    /// routed to earbuds or headphones.
+    /// </summary>
+    public bool FocusGranted
     {
-        get => masker.Muted;
-        set => masker.Muted = value;
+        get => focusGranted;
+        set
+        {
+            focusGranted = value;
+            masker.Muted = !(value && routeVerified);
+        }
     }
 
     public void Start()
     {
         record = Microphone.Open(context);
+        masker.Muted = true;
         masker.SetLevels(Volatile.Read(ref bedtime));
         masker.Start();
         running = true;
@@ -74,11 +92,14 @@ public sealed class NightEngine : IDisposable
         classify.Start();
     }
 
-    /// <summary>Applies a new masker volume at once; other settings take effect on the next start.</summary>
-    public void SetBedtime(NightSettings settings)
+    /// <summary>
+    /// Applies a new masker volume at once. The strongest boost and sensitivity shape the listener and the bedtime
+    /// headroom, so they take effect on the next start.
+    /// </summary>
+    public void SetVolume(float volume)
     {
         var levels = new float[MaskerBands.Count];
-        settings.BedtimeLevels(levels);
+        (session with { Volume = volume }).BedtimeLevels(levels);
         Volatile.Write(ref bedtime, levels);
     }
 
@@ -92,9 +113,19 @@ public sealed class NightEngine : IDisposable
         }
     }
 
+    /// <summary>
+    /// Stops both threads and releases the microphone, the masker and the sound model. Safe to call twice. If a sound
+    /// model call is still running, the sound model thread releases the model when it finishes.
+    /// </summary>
     public void Dispose()
     {
+        lock (disposal)
+        {
+            if (disposed) return;
+            disposed = true;
+        }
         running = false;
+        stopping.Cancel();
         try
         {
             record?.Stop();
@@ -103,11 +134,19 @@ public sealed class NightEngine : IDisposable
         {
         }
         if (capture.IsAlive) capture.Join(TimeSpan.FromSeconds(2));
-        windowReady.Release();
-        if (classify.IsAlive) classify.Join(TimeSpan.FromSeconds(2));
         record?.Release();
         record?.Dispose();
         masker.Dispose();
+        if (!classify.IsAlive || classify.Join(TimeSpan.FromSeconds(2))) ReleaseModel();
+    }
+
+    private void ReleaseModel()
+    {
+        lock (disposal)
+        {
+            if (modelReleased) return;
+            modelReleased = true;
+        }
         model.Dispose();
     }
 
@@ -160,6 +199,8 @@ public sealed class NightEngine : IDisposable
             for (var b = 0; b < levels.Length; b++)
                 levels[b] = bed[b] + boost[b];
             masker.SetLevels(levels);
+            if (listener.Hops % RouteCheckHops == 0) CheckRoute(ref problem);
+            if (problem is not null) break;
             Track();
             if (listener.Hops % PublishEveryHops == 0)
                 Publish(null);
@@ -167,11 +208,52 @@ public sealed class NightEngine : IDisposable
         Publish(problem);
     }
 
+    /// <summary>
+    /// Unmutes once every masking layer is confirmed to play through earbuds or headphones, and stops the night if any
+    /// layer is routed elsewhere, for example to the speaker after the earbuds drop out.
+    /// </summary>
+    private void CheckRoute(ref string? problem)
+    {
+        switch (masker.RoutedToEars())
+        {
+            case true when !routeVerified:
+                routeVerified = true;
+                masker.Muted = !focusGranted;
+                break;
+            case false:
+                problem = "The masker would have played from the phone speaker, so the night stopped. Connect earbuds and start again.";
+                running = false;
+                break;
+        }
+    }
+
     private void Classify()
+    {
+        try
+        {
+            ClassifyUntilStopped();
+        }
+        finally
+        {
+            bool release;
+            lock (disposal)
+                release = disposed;
+            if (release) ReleaseModel();
+        }
+    }
+
+    private void ClassifyUntilStopped()
     {
         while (true)
         {
-            windowReady.Wait();
+            try
+            {
+                windowReady.Wait(stopping.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
             if (!running) return;
             try
             {
