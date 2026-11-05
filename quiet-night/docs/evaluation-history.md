@@ -20,7 +20,7 @@ The user, asked after v0.1.0, chose to mask vocal cats only. A cat recording is 
 
 ## Test split 2
 
-Frozen in commit `ecfc688` and not yet run. It holds clips from FSD50K's evaluation half, from uploaders found nowhere else in the reference sounds; `reference-sounds/selection` holds the scripts and seeds that chose them:
+Frozen in commit `ecfc688`. It holds clips from FSD50K's evaluation half, from uploaders found nowhere else in the reference sounds; `reference-sounds/selection` holds the scripts and seeds that chose them:
 
 - 22 vocal cats;
 - 21 cars;
@@ -46,3 +46,26 @@ The bundled sound model was produced by `training/finetune.py` as of commit `fbb
 - The script's later labels, ported from the app's trainer, passed 6 of 11 cat passes but 13 of 35 with all three noises.
 
 Cats are the user's main concern, so the cats-only result chose the candidate.
+
+### Result
+
+Frozen test split 2 was evaluated once on 5 November 2026 using candidate `8e36550`, with the bundled run-3 sound model (`sound-model.onnx`, SHA-256 `137fcc3e…5428`) and its heads (`sound-head.bin` `576c9ff5…29d`, `frame-head.bin` `2b8c8435…a6a7`). Run 3 was selected before the test was opened, on cats-only validation. Its producing script revision was `fbb25bd`, with manifest fingerprint `17b5a08e32b0b172`; the current training script produces a different candidate. Acceptance is judged by criteria version 3; versions 2 and 1 are diagnostics. All three masking choices were specified before the run and are reported in full. The cat passes of the different choices share scenarios, so they are not independent observations.
+
+| Noises masked | Cat passes | Motorcycle passes | Car passes |
+| --- | --- | --- | --- |
+| All three | 0 of 5 | 0 of 2 | 0 of 5 |
+| Cars switched off | 0 of 5 | 0 of 2 | — |
+| Only cats | 0 of 5 | — | — |
+
+The goal of five cat passes was not met; the test split holds enough unseen motorcycles for only two passes. With only cats masked, the detector recognised 2 of the 16 test cats that needed masking for at least half a second, so most cat passes covered 7–62 % of the cats against the oracle's 100 %. The other failures were protected sounds boosted for up to 1.8 s and quiet nights boosted up to 4.3 % of the time.
+
+The validation results above do not carry over to this split. Its cats came from uploaders found nowhere else, and they were selected by label. FSD50K rates whether a labelled sound is predominant in its clip, and the splits differ sharply:
+
+- validation: all 46 cats rated predominant;
+- training: 101 of 151 cats rated predominant;
+- test split 2: 3 of 22 cats rated at all, and only 1 of those predominant.
+
+Many test cats are likely faint or mixed with other sounds.
+
+Coverage is controller coverage with an assumed 250 ms Bluetooth delay; what reaches the ear also depends on the earbuds' volume and seal. Split 2 is now spent, and a further held-out claim needs fresh test data.
+
