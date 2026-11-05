@@ -65,7 +65,7 @@ public sealed class EvaluationReport : IDisposable
 }
 
 /// <summary>
-/// Five independent passes per category over held-out reference sounds. Each pass mixes four cat, motorcycle or car
+/// Five independent passes per category over held-out reference sounds, or as many as the test split allows. Each pass mixes four cat, motorcycle or car
 /// recordings and two sounds that must not trigger masking into a held-out room, runs the app's exact listening path
 /// with the bundled YAMNet model and heads, and judges it by the criteria in <see cref="PassResult"/>, for each choice of
 /// noises to mask. The verdicts are
@@ -76,12 +76,16 @@ public sealed class FivePassTests(EvaluationReport report, ITestOutputHelper out
 {
     public const int Passes = 5;
 
+    /// <summary>Five passes, or as many as the test split holds unseen recordings of the category for.</summary>
+    public static int PassesOf(string category) =>
+        Math.Min(Passes, TestAssets.Manifest.Count(s => s.IsTest && s.Group == category) / NightScenario.Targets);
+
     public static TheoryData<string, string, int> Cases()
     {
         var cases = new TheoryData<string, string, int>();
         foreach (var choice in MaskingChoice.All)
             foreach (var category in choice.Categories)
-                for (var pass = 0; pass < Passes; pass++)
+                for (var pass = 0; pass < PassesOf(category); pass++)
                     cases.Add(choice.Name, category, pass);
         return cases;
     }
