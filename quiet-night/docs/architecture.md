@@ -26,7 +26,7 @@ flowchart LR
 Two trackers follow the room in each band from histograms of recent levels:
 
 - The **30 s median** is what "standing out" is measured against. It is frozen while a sound is being masked, for at most two thirds of any 30 s, so a long sound eventually becomes the room.
-- The **bedtime peak** is the room's 90th percentile over the last five minutes. It takes in brief swells such as drips or crickets, but not sounds that stand out for more than half a second, nor any hop already louder than the bedtime masker covers. The user sets the masker's volume at bedtime so the room cannot be heard. The masker's fixed spectral tilt, anchored at the band where the room peaks highest, plus 6 dB of headroom, is therefore what the bedtime masker already covers. A sound **needs masking** when any band exceeds that cover.
+- The **bedtime peak** is the room's 90th percentile over the last five minutes. It takes in brief swells such as drips or crickets, but not sounds that stand out for more than half a second, nor a sound standing out from the median that is already louder than the bedtime masker covers. The user sets the masker's volume at bedtime so the room cannot be heard. The masker's fixed spectral tilt, anchored at the band where the room peaks highest, plus 6 dB of headroom, is therefore what the bedtime masker already covers. A sound **needs masking** when any band exceeds that cover.
 
 While the room is quiet, the sound model also takes a fresh look at it every 10 s and averages YAMNet's view of the room.
 
@@ -40,7 +40,7 @@ The **sound model** is Google's YAMNet with its later layers fine-tuned for this
 
 `NoiseGate` follows each sound as an **episode**. An episode starts when a sound needs masking and ends a second after it stops needing it. Each verdict adds its log-odds of a target to the episode's evidence. Evidence against a target counts only in proportion to how much of the window the sound filled, reaching full weight at half the window.
 
-- **Confirmed** at +2. The sound is masked with the confirmed hold and release. From then on, evidence against it counts only as far as the window holds sound that needs masking, so its own pauses do not argue it out. For the next 8 s, a new sound whose rise above the room has the same spectral shape (correlation of at least 0.6 over its first 50 ms) continues the run and is masked at once.
+- **Confirmed** at +2. The sound is masked with the confirmed hold and release, and stays confirmed until the evidence rules it out. From then on, evidence against it counts only as far as the window holds sound that needs masking, so its own pauses do not argue it out. For the next 8 s, a new sound whose rise above the room has the same spectral shape (correlation of at least 0.6 over its first 50 ms) continues the run and is masked at once.
 - **Rejected** at −2. The boost falls at 150 dB/s and the sound is left alone. For the next 4 s, a new sound with the same shape is rejected as soon as it is recognised; the gate stays closed while it compares. A rejected sound that grows 10 dB louder than when it was rejected, such as an approaching motorcycle or a cat calling over rain, starts a new episode and is judged afresh.
 
 Which target is named comes from the share each target takes of the target probability in windows that look like targets, with older windows fading. A clear new target is therefore named correctly even after a long run of another.

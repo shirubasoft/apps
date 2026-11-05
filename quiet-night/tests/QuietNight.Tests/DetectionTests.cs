@@ -371,19 +371,38 @@ public sealed class DetectionTests
     }
 
     [Fact]
-    public void AConfirmedSoundIsNotArguedOutByItsOwnPauses()
+    public void TheBedtimeCoverRecoversWhenTheRoomReturnsToItsLevel()
+    {
+        var listener = new NightListener(Always(NoiseClass.Other), Settings);
+        var room = Signals.Concat(
+            Signals.Noise(0.003f, TimeSpan.FromSeconds(60), seed: 9),
+            Signals.Noise(0.0003f, TimeSpan.FromSeconds(350), seed: 10),
+            Signals.Noise(0.003f, TimeSpan.FromSeconds(300), seed: 11));
+        var hop = 0;
+        float[]? usual = null;
+        foreach (var samples in Signals.Hops(room))
+        {
+            listener.Process(samples.Span);
+            if (++hop == ListeningFormat.Hops(TimeSpan.FromSeconds(60))) usual = listener.RoomPeakDb.ToArray();
+        }
+        Assert.NotNull(usual);
+        for (var b = 0; b < usual.Length; b++)
+            Assert.InRange(listener.RoomPeakDb[b] - usual[b], -2f, 2f);
+    }
+
+    [Fact]
+    public void AConfirmedSoundStaysConfirmedThroughSparseDoubts()
     {
         var gate = new NoiseGate(Settings);
         Hops(gate, 3, needed: true);
-        gate.Apply(new Confirmed(NoiseClass.Cat, 0.95f, new ClassProbabilities(0.05f, 0.9f, 0.03f, 0.02f)), gate.Episode);
-        Assert.True(gate.Confirming);
-        for (var window = 0; window < 2; window++)
+        gate.Apply(new Confirmed(NoiseClass.Cat, 0.9f, new ClassProbabilities(0.1f, 0.85f, 0.03f, 0.02f)), gate.Episode);
+        for (var window = 0; window < 6; window++)
             gate.Apply(new Rejected(0.02f, default), gate.Episode, occupied: 0.05f);
         Assert.True(gate.Confirming);
-
-        // A window full of sound that is not a cat still argues it out.
+        gate.Apply(new Rejected(0.02f, default), gate.Episode, occupied: 1);
         gate.Apply(new Rejected(0.02f, default), gate.Episode, occupied: 1);
         Assert.False(gate.Confirming);
+        Assert.True(gate.Rejecting);
     }
 
     [Fact]

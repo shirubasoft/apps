@@ -147,9 +147,10 @@ public sealed class NightListener
         melRoom.Update(analyzer.MelDb, frozen);
         bandRoom.Update(analyzer.BandDb, frozen);
         // The bedtime cover takes in the room's brief swells, such as crickets or drips, but not sounds that stand out
-        // for longer, which are events to mask or deliberately leave audible, nor anything louder than it already
-        // covers: a burst of clatter early in the night would otherwise raise it for the cats that follow.
-        bedtimeRoom.Update(analyzer.BandDb, frozen || activeRun > BriefHops || needed);
+        // for longer, which are events to mask or deliberately leave audible, nor a sound standing out from the room
+        // that is louder than it already covers: a burst of clatter early in the night would otherwise raise it for
+        // the cats that follow. A room that itself gets louder becomes the median and is learned again.
+        bedtimeRoom.Update(analyzer.BandDb, frozen || activeRun > BriefHops || (needed && active));
 
         // The sound model is only asked about sounds that need masking: nothing else changes what the masker does.
         var recentlyNeeded = hops - lastNeeded < classifyHops * 2;

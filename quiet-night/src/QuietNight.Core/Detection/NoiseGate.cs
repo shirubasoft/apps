@@ -48,6 +48,7 @@ public sealed class NoiseGate(ListenerSettings settings)
     private readonly float[] runClassEvidence = new float[NoiseClasses.Count];
     private int shapeHops;
     private bool inherited;
+    private bool latched;
     private float episodeLoudestDb;
     private float rejectedAtDb;
     private readonly float[] classEvidence = new float[NoiseClasses.Count];
@@ -67,7 +68,7 @@ public sealed class NoiseGate(ListenerSettings settings)
     /// <summary>
     /// True while the current sound is a confirmed target or continues a confirmed run, and between the sounds of a run.
     /// </summary>
-    public bool Confirming => inEpisode ? !Rejecting && (evidence >= settings.ConfirmEvidence || (inherited && hop < runUntil)) : hop < runUntil;
+    public bool Confirming => inEpisode ? !Rejecting && (latched || evidence >= settings.ConfirmEvidence || (inherited && hop < runUntil)) : hop < runUntil;
 
     /// <summary>True for the hop in which the gate ruled the current sound out without a verdict, because it repeats a rejected one.</summary>
     public bool JustRejected { get; private set; }
@@ -104,6 +105,7 @@ public sealed class NoiseGate(ListenerSettings settings)
             // A new sound starts with no evidence and no name; it takes on the run's only once it sounds like it.
             evidence = 0;
             inherited = false;
+            latched = false;
             episodeLoudestDb = float.NegativeInfinity;
             rejectedAtDb = float.NegativeInfinity;
             shapeHops = 0;
@@ -145,6 +147,8 @@ public sealed class NoiseGate(ListenerSettings settings)
         if (logOdds < 0 && Confirming) logOdds *= Math.Clamp(occupied / settings.FullWeightFill, 0, 1);
         evidence = Math.Clamp(evidence + settings.WindowWeight * logOdds,
             settings.RejectEvidence - MaxWindowEvidence, settings.ConfirmEvidence + MaxWindowEvidence);
+        // Once confirmed, a sound stays confirmed until the evidence rules it out, so its pauses cannot lapse it.
+        if (evidence >= settings.ConfirmEvidence) latched = true;
         // Only windows that look like a target say which target it is; the share each target takes of the target
         // probability is what counts, so quieter windows do not drown out clear ones.
         if (verdict.TargetProbability >= 0.5f)
@@ -155,6 +159,7 @@ public sealed class NoiseGate(ListenerSettings settings)
                     MathF.Log(MathF.Max(classes[target] / verdict.TargetProbability, 1e-6f));
         }
         if (!Rejecting || wasRejecting) return false;
+        latched = false;
         // A sound of a confirmed run that the sound model rules out ends the run.
         if (inherited) runUntil = Math.Min(runUntil, hop);
         inherited = false;
