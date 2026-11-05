@@ -99,6 +99,59 @@ public sealed class TrainingTests
         }
     }
 
+    [Fact]
+    public void PersonalTrainingKeepsNewHeadsOnlyWhenTheyPassItsOwnRule()
+    {
+        using var model = TestAssets.CreateSoundModel();
+        var trainer = new PersonalTrainer(model, ListenerSettings.Default);
+        var current = TestAssets.Heads();
+        var reference = TestAssets.Reference();
+        // A warbling tone stands in for the user's cat and a steady hiss for their fan; each is long enough for its
+        // last fifth to be held back.
+        var cat = Signals.Concat([.. Enumerable.Range(0, 8).Select(i => Signals.Concat(
+            Signals.Sine(600 + 80 * (i % 3), 0.3f, TimeSpan.FromSeconds(0.6)), new float[Signals.Samples(TimeSpan.FromSeconds(0.4))]))]);
+        var fan = Signals.Noise(0.02f, TimeSpan.FromSeconds(8), seed: 5);
+        var progress = new List<double>();
+
+        var (heads, report) = trainer.Train(
+            [new LabeledAudio(cat, NoiseClass.Cat), new LabeledAudio(fan, NoiseClass.Other)],
+            current, reference, new InlineProgress(progress.Add));
+
+        Assert.Equal(2, report.Recordings);
+        Assert.True(report.FrameExamples > 0 && report.SoundExamples > 0);
+        Assert.False(double.IsNaN(report.SoundBefore) || double.IsNaN(report.SoundAfter));
+        // The decision follows the documented rule: a clear gain on the held-back recordings, and no loss beyond the
+        // allowances there or on reference sounds the heads never trained on.
+        var gains = report.SoundAfter >= report.SoundBefore + PersonalTrainer.RequiredGain
+            && report.FrameAfter >= report.FrameBefore - PersonalTrainer.AllowedPersonalLoss;
+        if (report.Accepted)
+        {
+            Assert.True(gains);
+            Assert.NotSame(current.Sound, heads.Sound);
+        }
+        else Assert.Same(current, heads);
+        Assert.Equal(1, progress[^1], 1e-9);
+        Assert.Equal(progress.Order(), progress);
+    }
+
+    [Fact]
+    public void PersonalTrainingWithoutRecordingsKeepsTheCurrentHeads()
+    {
+        using var model = TestAssets.CreateSoundModel();
+        var current = TestAssets.Heads();
+        var (heads, report) = new PersonalTrainer(model, ListenerSettings.Default).Train([], current, TestAssets.Reference());
+        Assert.False(report.Accepted);
+        Assert.Same(current, heads);
+        Assert.True(double.IsNaN(report.SoundBefore));
+        Assert.False(double.IsNaN(report.ReplayBefore));
+    }
+
+    /// <summary>Reports progress synchronously, unlike <see cref="Progress{T}"/>, so a test sees every value in order.</summary>
+    private sealed class InlineProgress(Action<double> report) : IProgress<double>
+    {
+        public void Report(double value) => report(value);
+    }
+
     [Theory]
     [InlineData(NoiseClass.Cat, "cat")]
     [InlineData(NoiseClass.Motorcycle, "motorcycle")]
