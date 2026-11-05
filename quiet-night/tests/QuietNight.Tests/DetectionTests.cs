@@ -351,6 +351,42 @@ public sealed class DetectionTests
     }
 
     [Fact]
+    public void BurstsOfClatterDoNotRaiseTheBedtimeCover()
+    {
+        var listener = new NightListener(Always(NoiseClass.Other), Settings);
+        var room = Signals.Noise(0.003f, TimeSpan.FromSeconds(30), seed: 8);
+        var burst = Signals.Concat(Signals.Sine(1500, 0.3f, TimeSpan.FromSeconds(0.3)), new float[Signals.Samples(TimeSpan.FromSeconds(0.3))]);
+        var clatter = Signals.Concat([.. Enumerable.Repeat(burst, 30)]);
+        var mixture = Signals.Add(room, Signals.Concat(new float[Signals.Samples(TimeSpan.FromSeconds(10))], clatter, new float[room.Length - Signals.Samples(TimeSpan.FromSeconds(10)) - clatter.Length]));
+        var hop = 0;
+        float[]? before = null;
+        foreach (var samples in Signals.Hops(mixture))
+        {
+            listener.Process(samples.Span);
+            if (++hop == ListeningFormat.Hops(TimeSpan.FromSeconds(10))) before = listener.RoomPeakDb.ToArray();
+        }
+        Assert.NotNull(before);
+        for (var b = 0; b < before.Length; b++)
+            Assert.InRange(listener.RoomPeakDb[b] - before[b], -1f, 1f);
+    }
+
+    [Fact]
+    public void AConfirmedSoundIsNotArguedOutByItsOwnPauses()
+    {
+        var gate = new NoiseGate(Settings);
+        Hops(gate, 3, needed: true);
+        gate.Apply(new Confirmed(NoiseClass.Cat, 0.95f, new ClassProbabilities(0.05f, 0.9f, 0.03f, 0.02f)), gate.Episode);
+        Assert.True(gate.Confirming);
+        for (var window = 0; window < 2; window++)
+            gate.Apply(new Rejected(0.02f, default), gate.Episode, occupied: 0.05f);
+        Assert.True(gate.Confirming);
+
+        // A window full of sound that is not a cat still argues it out.
+        gate.Apply(new Rejected(0.02f, default), gate.Episode, occupied: 1);
+        Assert.False(gate.Confirming);
+    }
+
+    [Fact]
     public void ListenerLearnsTheRoomFirstThenAsksForVerdictsOnlyWhileSomethingHappens()
     {
         var listener = new NightListener(Always(NoiseClass.Other), Settings);

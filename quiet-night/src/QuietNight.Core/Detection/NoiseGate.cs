@@ -7,7 +7,8 @@ namespace QuietNight.Core.Detection;
 /// detector is fairly sure it is not a target, so the masker reacts within a hop or two. While the sound lasts, every
 /// sound-model verdict adds its weighted log-odds to the episode's evidence, except that evidence against a target only
 /// counts for the share of the verdict's window the sound filled, since a window taken at a sound's onset mostly holds
-/// the quiet room before it. Once the evidence reaches
+/// the quiet room before it, and evidence against a confirmed sound only counts for the share of the window that needed
+/// masking, so a pause between meows does not argue the cat out. Once the evidence reaches
 /// <see cref="ListenerSettings.ConfirmEvidence"/> the sound is a confirmed target and later sounds within
 /// <see cref="ListenerSettings.ConfirmedSeconds"/> that sound like it are masked as part of the same run; once it falls
 /// to <see cref="ListenerSettings.RejectEvidence"/> the sound is left alone until it ends, and sounds in the next
@@ -131,14 +132,17 @@ public sealed class NoiseGate(ListenerSettings settings)
     /// <param name="verdict">The sound model's verdict.</param>
     /// <param name="episode">The episode the window was taken in.</param>
     /// <param name="filled">The share of the window, from 0 to 1, taken after the episode began.</param>
+    /// <param name="occupied">The share of the window's hops, from 0 to 1, in which a sound needed masking.</param>
     /// <returns>True when the verdict ruled the sound out, so its masking should fall away quickly.</returns>
-    public bool Apply(SoundVerdict verdict, long episode, float filled = 1)
+    public bool Apply(SoundVerdict verdict, long episode, float filled = 1, float occupied = 1)
     {
         if (!inEpisode || episode != Episode) return false;
         var wasRejecting = Rejecting;
         var p = Math.Clamp(verdict.TargetProbability, 1e-4f, 1 - 1e-4f);
         var logOdds = Math.Clamp(MathF.Log(p / (1 - p)), -MaxWindowEvidence, MaxWindowEvidence);
         if (logOdds < 0) logOdds *= Math.Clamp(filled / settings.FullWeightFill, 0, 1);
+        // A confirmed sound is only argued out by windows that hold sound, not by its own pauses.
+        if (logOdds < 0 && Confirming) logOdds *= Math.Clamp(occupied / settings.FullWeightFill, 0, 1);
         evidence = Math.Clamp(evidence + settings.WindowWeight * logOdds,
             settings.RejectEvidence - MaxWindowEvidence, settings.ConfirmEvidence + MaxWindowEvidence);
         // Only windows that look like a target say which target it is; the share each target takes of the target

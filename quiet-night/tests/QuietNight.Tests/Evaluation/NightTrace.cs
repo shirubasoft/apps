@@ -24,11 +24,15 @@ public sealed class NightTrace
         GateOpen = new bool[hops];
         Masking = new NoiseClass[hops];
         MixtureDb = new float[hops * MaskerBands.Count];
+        AppRoomPeakDb = new float[hops * MaskerBands.Count];
         OracleBoost = new float[hops * MaskerBands.Count];
     }
 
     /// <summary>A trace with nothing in it yet, for scoring hand-made situations.</summary>
     public static NightTrace Empty(int hops) => new(hops);
+
+    /// <summary>The app's own estimate of the room's usual peak level in each band, hop by hop.</summary>
+    public float[] AppRoomPeakDb { get; }
 
     /// <summary>The microphone's level in each band, as any controller would measure it.</summary>
     public float[] MixtureDb { get; }
@@ -131,6 +135,7 @@ public sealed class NightTrace
             mixtureAlone.Process(mixture.AsSpan(range));
             mixtureAlone.BandDb.CopyTo(trace.MixtureDb.AsSpan(h * MaskerBands.Count));
             listener.Masker.BoostDb.CopyTo(trace.Boost.AsSpan(h * MaskerBands.Count));
+            listener.RoomPeakDb.CopyTo(trace.AppRoomPeakDb.AsSpan(h * MaskerBands.Count));
             soundAlone.BandPower.CopyTo(trace.SoundPower.AsSpan(h * MaskerBands.Count));
             roomAlone.BandPower.CopyTo(trace.RoomPower.AsSpan(h * MaskerBands.Count));
             trace.GateOpen[h] = listener.Gate.Open;
