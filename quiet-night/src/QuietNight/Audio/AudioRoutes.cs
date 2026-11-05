@@ -23,4 +23,14 @@ public static class AudioRoutes
     }
 
     public static bool IsEar(AudioDeviceType type) => EarTypes.Contains(type);
+
+    /// <summary>The name of the earbuds or headphones the night will play in, such as "Pixel Buds Pro", or null.</summary>
+    public static string? EarbudsName(Context context)
+    {
+        var audio = (AudioManager?)context.GetSystemService(Context.AudioService);
+        var ear = (audio?.GetDevices(GetDevicesTargets.Outputs) ?? []).FirstOrDefault(d => IsEar(d.Type));
+        var name = ear?.ProductName?.ToString();
+        // Wired headphones often report the phone's own model as their name, which says nothing useful.
+        return string.IsNullOrWhiteSpace(name) || name == Android.OS.Build.Model ? null : name;
+    }
 }

@@ -38,7 +38,8 @@ public sealed class NightEngine : IDisposable
     private int recentPosition;
     private bool recentFull;
     private readonly CancellationTokenSource stopping = new();
-    private readonly NightSettings session;
+    private NightSettings session;
+    private readonly float levelsMaxBoostDb;
     private readonly Lock disposal = new();
     private volatile bool running;
     private volatile bool focusGranted;
@@ -49,11 +50,15 @@ public sealed class NightEngine : IDisposable
     private bool modelReleased;
     private float[] bedtime = new float[MaskerBands.Count];
     private const int RouteCheckHops = 10;
+    private readonly Lock boostLock = new();
+    private float? pendingMaxBoost;
 
     public NightEngine(Context context, NightSettings settings, DetectorHeads heads, byte[] yamnet, float[][] layers)
     {
         this.context = context;
         session = settings;
+        // The bedtime levels keep the headroom the night started with, so lowering the boost never raises the bedtime sound.
+        levelsMaxBoostDb = settings.MaxBoostDb;
         SetVolume(settings.Volume);
         var listenerSettings = settings.Listener;
         listener = new NightListener(heads.Frame, listenerSettings);
@@ -97,10 +102,17 @@ public sealed class NightEngine : IDisposable
     /// Applies a new masker volume at once. The strongest boost and sensitivity shape the listener and the bedtime
     /// headroom, so they take effect on the next start.
     /// </summary>
+    /// <summary>Lowers or raises tonight's loudest boost at once, as when a boost has woken the user.</summary>
+    public void SetMaxBoost(float maxBoostDb)
+    {
+        lock (boostLock)
+            pendingMaxBoost = maxBoostDb;
+    }
+
     public void SetVolume(float volume)
     {
         var levels = new float[MaskerBands.Count];
-        (session with { Volume = volume }).BedtimeLevels(levels);
+        (session with { Volume = volume, MaxBoostDb = levelsMaxBoostDb }).BedtimeLevels(levels);
         Volatile.Write(ref bedtime, levels);
     }
 
@@ -188,6 +200,14 @@ public sealed class NightEngine : IDisposable
                         break;
                 }
             }
+            // A new loudest boost is handed to the masker between hops, on the thread that runs it.
+            lock (boostLock)
+                if (pendingMaxBoost is { } maxBoost)
+                {
+                    listener.Masker.Settings = listener.Masker.Settings with { MaxBoostDb = maxBoost };
+                    session = session with { MaxBoostDb = maxBoost };
+                    pendingMaxBoost = null;
+                }
             listener.Process(hop);
             if (listener.WantsVerdict || listener.WantsRoom)
             {
@@ -329,7 +349,10 @@ public sealed class NightEngine : IDisposable
             listener.Masker.LoudestBoostDb,
             listener.Warm ? roomDb : float.NaN,
             snapshot,
-            problem));
+            problem,
+            listener.Masker.BoostDb.ToArray(),
+            !focusGranted,
+            session.MaxBoostDb));
     }
 }
 

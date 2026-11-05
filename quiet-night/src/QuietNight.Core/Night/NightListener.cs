@@ -50,6 +50,9 @@ public sealed class NightListener
     private int frozenInWindow;
     private long requestEpisode;
     private float requestFilled;
+    private float requestOccupied;
+    private readonly bool[] neededHistory = new bool[SoundModel.WindowSamples / ListeningFormat.HopSamples];
+    private int neededInWindow;
     private long hops;
     private long lastRequest = long.MinValue / 2;
     private long lastActive = long.MinValue / 2;
@@ -123,6 +126,9 @@ public sealed class NightListener
             excess = MathF.Max(excess, analyzer.BandDb[b] - covered[b]);
         var needed = warm && excess > 0;
         if (needed) lastNeeded = hops;
+        var neededSlot = (int)(hops % neededHistory.Length);
+        neededInWindow += (needed ? 1 : 0) - (neededHistory[neededSlot] ? 1 : 0);
+        neededHistory[neededSlot] = needed;
 
         frameFeatures.Compute(analyzer.MelDb, melRoom.Level, features);
         frameModel.Predict(features, probabilities);
@@ -141,8 +147,10 @@ public sealed class NightListener
         melRoom.Update(analyzer.MelDb, frozen);
         bandRoom.Update(analyzer.BandDb, frozen);
         // The bedtime cover takes in the room's brief swells, such as crickets or drips, but not sounds that stand out
-        // for longer, which are events to mask or deliberately leave audible.
-        bedtimeRoom.Update(analyzer.BandDb, frozen || activeRun > BriefHops);
+        // for longer, which are events to mask or deliberately leave audible, nor a sound standing out from the room
+        // that is louder than it already covers: a burst of clatter early in the night would otherwise raise it for
+        // the cats that follow. A room that itself gets louder becomes the median and is learned again.
+        bedtimeRoom.Update(analyzer.BandDb, frozen || activeRun > BriefHops || (needed && active));
 
         // The sound model is only asked about sounds that need masking: nothing else changes what the masker does.
         var recentlyNeeded = hops - lastNeeded < classifyHops * 2;
@@ -160,6 +168,7 @@ public sealed class NightListener
             lastRequest = hops;
             requestEpisode = Gate.Episode;
             requestFilled = (float)Gate.EpisodeHops / WindowHops;
+            requestOccupied = (float)neededInWindow / WindowHops;
         }
         else if (WantsRoom)
         {
@@ -183,7 +192,7 @@ public sealed class NightListener
     public void Accept(SoundVerdict verdict)
     {
         classifying = false;
-        if (Gate.Apply(verdict, requestEpisode, requestFilled)) Masker.Drop();
+        if (Gate.Apply(verdict, requestEpisode, requestFilled, requestOccupied)) Masker.Drop();
     }
 
     /// <summary>The sound model has learned the room from the window it was given.</summary>

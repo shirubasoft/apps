@@ -31,8 +31,7 @@ public sealed class RecordingLibrary(string directory)
     public Recording Save(ReadOnlySpan<float> samples, NoiseClass label, DateTimeOffset created)
     {
         System.IO.Directory.CreateDirectory(Directory);
-        var name = $"{Slug(label)}-{created.UtcDateTime.ToString(TimeFormat, CultureInfo.InvariantCulture)}.wav";
-        var path = Path.Combine(Directory, name);
+        var path = Path.Combine(Directory, Name(label, created));
         var temporary = path + ".part";
         using (var stream = File.Create(temporary))
             WaveFile.Write(stream, samples, ListeningFormat.SampleRate);
@@ -51,6 +50,15 @@ public sealed class RecordingLibrary(string directory)
 
     public void Delete(Recording recording) => File.Delete(recording.Path);
 
+    /// <summary>Gives a recording another label, keeping its sound and the time it was made.</summary>
+    public Recording Relabel(Recording recording, NoiseClass label)
+    {
+        if (recording.Label == label) return recording;
+        var path = Path.Combine(Directory, Name(label, recording.Created));
+        File.Move(recording.Path, path, overwrite: true);
+        return recording with { Path = path, Label = label };
+    }
+
     public static string Slug(NoiseClass label) => label switch
     {
         NoiseClass.Cat => "cat",
@@ -58,6 +66,9 @@ public sealed class RecordingLibrary(string directory)
         NoiseClass.Car => "car",
         _ => "other",
     };
+
+    private static string Name(NoiseClass label, DateTimeOffset created) =>
+        $"{Slug(label)}-{created.UtcDateTime.ToString(TimeFormat, CultureInfo.InvariantCulture)}.wav";
 
     private static Recording? Parse(string path)
     {

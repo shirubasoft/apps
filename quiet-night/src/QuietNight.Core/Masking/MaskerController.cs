@@ -18,7 +18,11 @@ public sealed class MaskerController(MaskerSettings settings)
     private readonly bool[] dropping = new bool[MaskerBands.Count];
     private int hop;
 
-    public MaskerSettings Settings { get; } = settings;
+    /// <summary>
+    /// The masker's settings. Changing them takes effect from the next hop, so the loudest boost can be lowered during a
+    /// night; boosts already above it settle to it as they would after any sound.
+    /// </summary>
+    public MaskerSettings Settings { get; set; } = settings;
 
     /// <summary>The boost of each band above the bedtime level, in dB.</summary>
     public ReadOnlySpan<float> BoostDb => boost;
@@ -69,7 +73,7 @@ public sealed class MaskerController(MaskerSettings settings)
             var expected = levelDb[b] + MathF.Min(rising * lookahead, MaskerSettings.MaxAnticipationDb);
             var needed = disturbing && levelDb[b] > covered[b] ? Settings.Needed(expected - covered[b]) : 0;
             runPeak[b] = confirmed ? MathF.Max(runPeak[b], needed) : 0;
-            var target = MathF.Max(needed, runPeak[b] - Settings.RunDipDb);
+            var target = MathF.Min(MathF.Max(needed, runPeak[b] - Settings.RunDipDb), Settings.MaxBoostDb);
             if (target > 0 && target >= boost[b])
             {
                 boost[b] = target;

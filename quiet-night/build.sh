@@ -82,7 +82,7 @@ fi
 cp "$apk_path" "$artifact_root/QuietNight.apk"
 rm -rf "$artifact_root/models"
 mkdir -p "$artifact_root/models"
-cp "$repo_root/src/QuietNight/Resources/Raw/yamnet.onnx" \
+cp "$repo_root/src/QuietNight/Resources/Raw/sound-model.onnx" \
   "$repo_root/src/QuietNight/Resources/Raw/frame-head.bin" \
   "$repo_root/src/QuietNight/Resources/Raw/sound-head.bin" "$artifact_root/models/"
 if [[ -n "$release_version" ]]; then

@@ -45,6 +45,40 @@ public sealed record NightSettings(float Volume, float MaxBoostDb, Sensitivity S
             levelDb[b] = volumeDb + MaskerSettings.ShapeDb[b];
     }
 
+    /// <summary>The noises this night masks, in words, such as "cats and cars".</summary>
+    public string Masked()
+    {
+        var names = NoiseClasses.Targets.Where(n => !Ignored.Contains(n)).Select(n => Describe(n, plural: true)).ToList();
+        return names.Count == 1 ? names[0] : $"{string.Join(", ", names[..^1])} and {names[^1]}";
+    }
+
+    /// <summary>A noise in words: "a cat", or "cats" when <paramref name="plural"/>.</summary>
+    public static string Describe(NoiseClass noise, bool plural = false) => (noise, plural) switch
+    {
+        (NoiseClass.Cat, true) => "cats",
+        (NoiseClass.Motorcycle, true) => "motorcycles",
+        (NoiseClass.Car, true) => "cars",
+        (NoiseClass.Cat, _) => "a cat",
+        (NoiseClass.Motorcycle, _) => "a motorcycle",
+        (NoiseClass.Car, _) => "a car",
+        _ => plural ? "noises" : "a noise",
+    };
+
+    /// <summary>The time of day the night stops by itself, or null to run until stopped.</summary>
+    public static TimeSpan? StopAt
+    {
+        get => Preferences.Default.Get("stop-at-minutes", -1) is var minutes and >= 0 ? TimeSpan.FromMinutes(minutes) : null;
+        set => Preferences.Default.Set("stop-at-minutes", value is { } at ? (int)at.TotalMinutes : -1);
+    }
+
+    /// <summary>When a night started now would stop by itself, or null when it runs until stopped.</summary>
+    public static DateTime? NextStop(DateTime now)
+    {
+        if (StopAt is not { } at) return null;
+        var today = now.Date + at;
+        return today > now.AddMinutes(1) ? today : today.AddDays(1);
+    }
+
     public static NightSettings Load()
     {
         var ignored = new IgnoredNoises(

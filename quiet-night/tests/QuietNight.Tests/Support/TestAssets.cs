@@ -6,7 +6,7 @@ namespace QuietNight.Tests.Support;
 /// <summary>The bundled models and the reference-sound manifest copied next to the tests.</summary>
 public static class TestAssets
 {
-    private static readonly Lazy<byte[]> YamnetBytes = new(() => File.ReadAllBytes(Model("yamnet.onnx")));
+    private static readonly Lazy<byte[]> YamnetBytes = new(() => File.ReadAllBytes(Model("sound-model.onnx")));
     private static readonly Lazy<IReadOnlyList<ReferenceSound>> Sounds = new(() =>
     {
         using var stream = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "ReferenceSounds", "manifest.json"));

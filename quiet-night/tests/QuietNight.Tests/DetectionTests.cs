@@ -23,7 +23,7 @@ public sealed class DetectionTests
     [InlineData(new[] { 0.2f, 0.1f, 0.2f, 0.5f }, "Confirmed", NoiseClass.Car)]
     public void VerdictsFollowTheTargetProbability(float[] probabilities, string kind, NoiseClass noise)
     {
-        var verdict = Settings.Judge(probabilities);
+        var verdict = (Settings with { OtherPrior = 0 }).Judge(probabilities);
         var (actualKind, actualNoise) = verdict switch
         {
             Confirmed c => ("Confirmed", c.Noise),
@@ -33,6 +33,16 @@ public sealed class DetectionTests
         };
         Assert.Equal((kind, noise), (actualKind, actualNoise));
         Assert.Equal(1 - probabilities[0], verdict.TargetProbability, 1e-5f);
+    }
+
+    [Fact]
+    public void TheHarmlessPriorTiltsAWindowTowardsHarmless()
+    {
+        var neutral = (Settings with { OtherPrior = 0 }).Judge([0.4f, 0.5f, 0.05f, 0.05f]);
+        var tilted = (Settings with { OtherPrior = 0.5f }).Judge([0.4f, 0.5f, 0.05f, 0.05f]);
+        var other = 0.4f * MathF.Exp(0.5f);
+        Assert.Equal(0.6f, neutral.TargetProbability, 1e-5f);
+        Assert.Equal(0.6f / (other + 0.6f), tilted.TargetProbability, 1e-5f);
     }
 
     [Fact]
@@ -338,6 +348,61 @@ public sealed class DetectionTests
         {
             Assert.Null(firstBoost);
         }
+    }
+
+    [Fact]
+    public void BurstsOfClatterDoNotRaiseTheBedtimeCover()
+    {
+        var listener = new NightListener(Always(NoiseClass.Other), Settings);
+        var room = Signals.Noise(0.003f, TimeSpan.FromSeconds(30), seed: 8);
+        var burst = Signals.Concat(Signals.Sine(1500, 0.3f, TimeSpan.FromSeconds(0.3)), new float[Signals.Samples(TimeSpan.FromSeconds(0.3))]);
+        var clatter = Signals.Concat([.. Enumerable.Repeat(burst, 30)]);
+        var mixture = Signals.Add(room, Signals.Concat(new float[Signals.Samples(TimeSpan.FromSeconds(10))], clatter, new float[room.Length - Signals.Samples(TimeSpan.FromSeconds(10)) - clatter.Length]));
+        var hop = 0;
+        float[]? before = null;
+        foreach (var samples in Signals.Hops(mixture))
+        {
+            listener.Process(samples.Span);
+            if (++hop == ListeningFormat.Hops(TimeSpan.FromSeconds(10))) before = listener.RoomPeakDb.ToArray();
+        }
+        Assert.NotNull(before);
+        for (var b = 0; b < before.Length; b++)
+            Assert.InRange(listener.RoomPeakDb[b] - before[b], -1f, 1f);
+    }
+
+    [Fact]
+    public void TheBedtimeCoverRecoversWhenTheRoomReturnsToItsLevel()
+    {
+        var listener = new NightListener(Always(NoiseClass.Other), Settings);
+        var room = Signals.Concat(
+            Signals.Noise(0.003f, TimeSpan.FromSeconds(60), seed: 9),
+            Signals.Noise(0.0003f, TimeSpan.FromSeconds(350), seed: 10),
+            Signals.Noise(0.003f, TimeSpan.FromSeconds(300), seed: 11));
+        var hop = 0;
+        float[]? usual = null;
+        foreach (var samples in Signals.Hops(room))
+        {
+            listener.Process(samples.Span);
+            if (++hop == ListeningFormat.Hops(TimeSpan.FromSeconds(60))) usual = listener.RoomPeakDb.ToArray();
+        }
+        Assert.NotNull(usual);
+        for (var b = 0; b < usual.Length; b++)
+            Assert.InRange(listener.RoomPeakDb[b] - usual[b], -2f, 2f);
+    }
+
+    [Fact]
+    public void AConfirmedSoundStaysConfirmedThroughSparseDoubts()
+    {
+        var gate = new NoiseGate(Settings);
+        Hops(gate, 3, needed: true);
+        gate.Apply(new Confirmed(NoiseClass.Cat, 0.9f, new ClassProbabilities(0.1f, 0.85f, 0.03f, 0.02f)), gate.Episode);
+        for (var window = 0; window < 6; window++)
+            gate.Apply(new Rejected(0.02f, default), gate.Episode, occupied: 0.05f);
+        Assert.True(gate.Confirming);
+        gate.Apply(new Rejected(0.02f, default), gate.Episode, occupied: 1);
+        gate.Apply(new Rejected(0.02f, default), gate.Episode, occupied: 1);
+        Assert.False(gate.Confirming);
+        Assert.True(gate.Rejecting);
     }
 
     [Fact]

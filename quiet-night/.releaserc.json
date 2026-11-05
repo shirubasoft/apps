@@ -26,8 +26,8 @@
             "label": "Quiet Night Android APK"
           },
           {
-            "path": "artifacts/models/yamnet.onnx",
-            "label": "Prebuilt YAMNet sound model (Google, Apache-2.0, ONNX)"
+            "path": "artifacts/models/sound-model.onnx",
+            "label": "YAMNet sound model (Google, Apache-2.0) fine-tuned on the reference sounds, ONNX"
           },
           {
             "path": "artifacts/models/frame-head.bin",

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using QuietNight.Core.Detection;
 using QuietNight.Core.Masking;
 using QuietNight.Core.Recordings;
@@ -7,14 +8,19 @@ using QuietNight.Core.Training;
 namespace QuietNight.Training;
 
 /// <summary>
-/// Where the models live: the prebuilt YAMNet model and reference heads ship inside the app; heads trained on the
-/// user's recordings are saved in app storage and used instead until the user resets them.
+/// Where the models live: the sound model and reference heads ship inside the app; heads trained on the user's
+/// recordings are saved in app storage and used instead until the user resets them. Personal heads remember which
+/// sound model they were trained on: after an update that changes it, they no longer fit its features, so they are
+/// set aside and the user's recordings stay ready to train again. Personal heads and their record are published
+/// together by renaming a finished folder, and every read and change of them takes the same lock.
 /// </summary>
 public static class ModelStore
 {
     private const string PersonalInfoFile = "personal.txt";
     private static readonly SemaphoreSlim Gate = new(1, 1);
+    private static readonly SemaphoreSlim PersonalGate = new(1, 1);
     private static byte[]? yamnet;
+    private static string? soundModelId;
     private static float[][]? layers;
 
     public static string PersonalDirectory => Path.Combine(FileSystem.AppDataDirectory, "model");
@@ -23,17 +29,22 @@ public static class ModelStore
 
     public static bool IsPersonal => File.Exists(Path.Combine(PersonalDirectory, DetectorHeads.SoundFile));
 
-    /// <summary>When the personal heads were trained and from how many recordings, or null for the prebuilt heads.</summary>
+    /// <summary>
+    /// When the personal heads were trained and from how many recordings, or null for the prebuilt heads. A save swapping
+    /// the folder in at that moment reads as null; the page asking refreshes again afterwards.
+    /// </summary>
     public static (DateTimeOffset Trained, int Recordings)? PersonalInfo
     {
         get
         {
-            var path = Path.Combine(PersonalDirectory, PersonalInfoFile);
-            if (!IsPersonal || !File.Exists(path)) return null;
-            var parts = File.ReadAllText(path).Split(' ');
-            return parts.Length == 2 && DateTimeOffset.TryParse(parts[0], CultureInfo.InvariantCulture, DateTimeStyles.None, out var at) && int.TryParse(parts[1], out var count)
-                ? (at, count)
-                : null;
+            try
+            {
+                return ReadPersonalInfo() is { } info ? (info.Trained, info.Recordings) : null;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
         }
     }
 
@@ -42,11 +53,31 @@ public static class ModelStore
         await Gate.WaitAsync();
         try
         {
-            return yamnet ??= await ReadAssetAsync("yamnet.onnx");
+            if (yamnet is null)
+            {
+                yamnet = await ReadAssetAsync("sound-model.onnx");
+                soundModelId = Convert.ToHexString(SHA256.HashData(yamnet))[..16];
+            }
+            return yamnet;
         }
         finally
         {
             Gate.Release();
+        }
+    }
+
+    /// <summary>Sets aside personal heads trained on a different sound model, or saved before heads recorded theirs.</summary>
+    public static async Task ForgetIncompatibleAsync()
+    {
+        await YamnetAsync();
+        await PersonalGate.WaitAsync();
+        try
+        {
+            ForgetIncompatible();
+        }
+        finally
+        {
+            PersonalGate.Release();
         }
     }
 
@@ -55,16 +86,21 @@ public static class ModelStore
 
     public static async Task<DetectorHeads> HeadsAsync()
     {
-        if (IsPersonal)
+        await YamnetAsync();
+        await PersonalGate.WaitAsync();
+        try
         {
-            try
-            {
+            ForgetIncompatible();
+            if (IsPersonal)
                 return DetectorHeads.Load(name => File.OpenRead(Path.Combine(PersonalDirectory, name)));
-            }
-            catch (Exception e) when (e is IOException or InvalidDataException or ArgumentException)
-            {
-                Reset();
-            }
+        }
+        catch (Exception e) when (e is IOException or InvalidDataException or ArgumentException or UnauthorizedAccessException)
+        {
+            DeletePersonal();
+        }
+        finally
+        {
+            PersonalGate.Release();
         }
         return await BundledHeadsAsync();
     }
@@ -84,14 +120,76 @@ public static class ModelStore
         return DetectorHeads.LoadReference(name => new MemoryStream(files[name]));
     }
 
-    public static void SavePersonal(DetectorHeads heads, int recordings)
+    /// <summary>Writes the heads and their record to a fresh folder, then swaps it in for the current personal heads.</summary>
+    public static async Task SavePersonalAsync(DetectorHeads heads, int recordings)
     {
-        heads.Save(PersonalDirectory);
-        File.WriteAllText(Path.Combine(PersonalDirectory, PersonalInfoFile),
-            $"{DateTimeOffset.Now.ToString("o", CultureInfo.InvariantCulture)} {recordings}");
+        await YamnetAsync();
+        await PersonalGate.WaitAsync();
+        try
+        {
+            var staging = PersonalDirectory + ".new";
+            var previous = PersonalDirectory + ".old";
+            if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
+            heads.Save(staging);
+            File.WriteAllText(Path.Combine(staging, PersonalInfoFile),
+                $"{DateTimeOffset.Now.ToString("o", CultureInfo.InvariantCulture)} {recordings} {soundModelId}");
+            if (Directory.Exists(previous)) Directory.Delete(previous, recursive: true);
+            if (Directory.Exists(PersonalDirectory)) Directory.Move(PersonalDirectory, previous);
+            Directory.Move(staging, PersonalDirectory);
+            if (Directory.Exists(previous)) Directory.Delete(previous, recursive: true);
+        }
+        finally
+        {
+            PersonalGate.Release();
+        }
     }
 
-    public static void Reset()
+    private static (DateTimeOffset Trained, int Recordings, string SoundModel)? ReadPersonalInfo()
+    {
+        var path = Path.Combine(PersonalDirectory, PersonalInfoFile);
+        if (!IsPersonal || !File.Exists(path)) return null;
+        var parts = File.ReadAllText(path).Split(' ');
+        return parts.Length == 3 && DateTimeOffset.TryParse(parts[0], CultureInfo.InvariantCulture, DateTimeStyles.None, out var at) && int.TryParse(parts[1], out var count)
+            ? (at, count, parts[2])
+            : null;
+    }
+
+    public static async Task ResetAsync()
+    {
+        await PersonalGate.WaitAsync();
+        try
+        {
+            DeletePersonal();
+        }
+        finally
+        {
+            PersonalGate.Release();
+        }
+    }
+
+    private static void ForgetIncompatible()
+    {
+        Recover();
+        if (IsPersonal && ReadPersonalInfo()?.SoundModel != soundModelId) DeletePersonal();
+    }
+
+    /// <summary>
+    /// Finishes a save the process did not live to complete: when the personal folder is missing, a fully written new
+    /// folder is promoted, or else the previous one is put back.
+    /// </summary>
+    private static void Recover()
+    {
+        if (Directory.Exists(PersonalDirectory)) return;
+        var staging = PersonalDirectory + ".new";
+        var previous = PersonalDirectory + ".old";
+        if (Complete(staging)) Directory.Move(staging, PersonalDirectory);
+        else if (Complete(previous)) Directory.Move(previous, PersonalDirectory);
+    }
+
+    private static bool Complete(string directory) =>
+        new[] { DetectorHeads.FrameFile, DetectorHeads.SoundFile, PersonalInfoFile }.All(name => File.Exists(Path.Combine(directory, name)));
+
+    private static void DeletePersonal()
     {
         if (Directory.Exists(PersonalDirectory))
             Directory.Delete(PersonalDirectory, recursive: true);

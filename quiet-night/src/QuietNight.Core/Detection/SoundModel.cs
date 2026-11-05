@@ -3,8 +3,9 @@ using Microsoft.ML.OnnxRuntime;
 namespace QuietNight.Core.Detection;
 
 /// <summary>
-/// Google's prebuilt YAMNet audio event model (AudioSet, Apache-2.0), run with ONNX Runtime. It turns 0.96 s of
-/// 16 kHz audio into a 1024-value embedding that the trainable <see cref="SoundRecognizer"/> head classifies.
+/// Google's YAMNet audio event model (AudioSet, Apache-2.0) with its later layers fine-tuned on the reference sounds
+/// mixed into night rooms, run with ONNX Runtime. It turns 0.96 s of 16 kHz audio into a 1024-value embedding and
+/// AudioSet scores that the trainable <see cref="SoundRecognizer"/> head classifies.
 /// </summary>
 public sealed class SoundModel : IDisposable
 {

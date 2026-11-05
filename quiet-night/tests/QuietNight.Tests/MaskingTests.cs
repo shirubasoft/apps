@@ -72,6 +72,18 @@ public sealed class MaskingTests
     }
 
     [Fact]
+    public void LoweringTheLoudestBoostDuringARunCapsItFromThen()
+    {
+        var masker = new MaskerController(Settings with { MaxBoostDb = 30 });
+        masker.Update(true, Excess(20), Room, confirmed: true);
+        Assert.Equal(23, masker.LoudestBoostDb, 1e-4f);
+        masker.Settings = masker.Settings with { MaxBoostDb = 12 };
+        for (var h = 0; h < 2_000; h++)
+            masker.Update(true, Excess(20), Room, confirmed: true);
+        Assert.Equal(12, masker.LoudestBoostDb, 1e-4f);
+    }
+
+    [Fact]
     public void ClosedGateNeverRaisesTheMasker()
     {
         var masker = new MaskerController(Settings);
