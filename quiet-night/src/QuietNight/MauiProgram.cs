@@ -9,8 +9,9 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>().ConfigureFonts(fonts =>
         {
-            fonts.AddFont("OpenSans-Regular.ttf", Theme.Regular);
-            fonts.AddFont("OpenSans-Semibold.ttf", Theme.Semibold);
+            fonts.AddFont("AtkinsonNext-Regular.ttf", Theme.Regular);
+            fonts.AddFont("AtkinsonNext-SemiBold.ttf", Theme.Semibold);
+            fonts.AddFont("Fraunces-Soft.ttf", Theme.Display);
         });
         return builder.Build();
     }

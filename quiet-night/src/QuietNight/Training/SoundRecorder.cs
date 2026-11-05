@@ -4,16 +4,20 @@ using QuietNight.Core.Analysis;
 
 namespace QuietNight.Training;
 
-/// <summary>Records a labelled sound from the same microphone setup the night uses, for at most 30 s.</summary>
+/// <summary>
+/// Listens with the same microphone setup the night uses, keeping only the latest 30 s, so the user can start it and
+/// wait for a noise that comes when it pleases. It stops by itself after ten minutes.
+/// </summary>
 public sealed class SoundRecorder : IDisposable
 {
-    public static readonly TimeSpan MaxLength = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan KeptLength = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan MaxWait = TimeSpan.FromMinutes(10);
 
     private readonly AudioRecord record;
-    private readonly float[] samples = new float[(int)(MaxLength.TotalSeconds * ListeningFormat.SampleRate)];
+    private readonly float[] ring = new float[(int)(KeptLength.TotalSeconds * ListeningFormat.SampleRate)];
     private readonly Thread thread;
     private volatile bool running;
-    private volatile int count;
+    private long count;
     private volatile float levelDb = float.NegativeInfinity;
 
     public SoundRecorder()
@@ -22,12 +26,14 @@ public sealed class SoundRecorder : IDisposable
         thread = new Thread(Read) { IsBackground = true, Name = "Recorder" };
     }
 
-    public TimeSpan Elapsed => TimeSpan.FromSeconds((double)count / ListeningFormat.SampleRate);
+    /// <summary>How long it has been listening.</summary>
+    public TimeSpan Elapsed => TimeSpan.FromSeconds((double)Interlocked.Read(ref count) / ListeningFormat.SampleRate);
 
     /// <summary>The level of the latest 10 ms, in dB relative to full scale.</summary>
     public float LevelDb => levelDb;
 
-    public bool Full => count >= samples.Length;
+    /// <summary>True once it has waited as long as it will.</summary>
+    public bool Done => Elapsed >= MaxWait || (!running && Interlocked.Read(ref count) > 0);
 
     public void Start()
     {
@@ -36,12 +42,16 @@ public sealed class SoundRecorder : IDisposable
         thread.Start();
     }
 
+    /// <summary>Stops and returns the latest 30 s, oldest first.</summary>
     public float[] Stop()
     {
         running = false;
         record.Stop();
         thread.Join(TimeSpan.FromSeconds(1));
-        return samples[..count];
+        var total = Interlocked.Read(ref count);
+        if (total <= ring.Length) return ring[..(int)total];
+        var start = (int)(total % ring.Length);
+        return [.. ring[start..], .. ring[..start]];
     }
 
     public void Dispose()
@@ -53,13 +63,17 @@ public sealed class SoundRecorder : IDisposable
 
     private void Read()
     {
-        while (running && count < samples.Length)
+        var hop = new float[ListeningFormat.HopSamples];
+        while (running && Elapsed < MaxWait)
         {
-            var wanted = Math.Min(ListeningFormat.HopSamples, samples.Length - count);
-            var read = record.Read(samples, count, wanted, 0);
+            var read = record.Read(hop, 0, hop.Length, 0);
             if (read <= 0) break;
-            levelDb = Loudness.RmsDb(samples.AsSpan(count, read));
-            count += read;
+            levelDb = Loudness.RmsDb(hop.AsSpan(0, read));
+            var at = (int)(Interlocked.Read(ref count) % ring.Length);
+            var first = Math.Min(read, ring.Length - at);
+            hop.AsSpan(0, first).CopyTo(ring.AsSpan(at));
+            hop.AsSpan(first, read - first).CopyTo(ring);
+            Interlocked.Add(ref count, read);
         }
         running = false;
     }
