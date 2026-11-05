@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0-android</TargetFramework>
+    <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>QuietNight</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <ApplicationTitle>Quiet Night</ApplicationTitle>
+    <ApplicationId>dev.danielreis.quietnight</ApplicationId>
+    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <SupportedOSPlatformVersion>30.0</SupportedOSPlatformVersion>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <MauiIcon Include="Resources/AppIcon/appicon.svg" ForegroundFile="Resources/AppIcon/appiconfg.svg" Color="#0E1220" />
+    <MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#0E1220" BaseSize="128,128" />
+    <MauiFont Include="Resources/Fonts/*" />
+    <MauiImage Include="Resources/Images/*.svg" />
+    <MauiAsset Include="Resources/Raw/**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+    <PackageReference Include="Microsoft.Maui.Controls" />
+    <ProjectReference Include="../QuietNight.Core/QuietNight.Core.csproj" />
+  </ItemGroup>
+</Project>
