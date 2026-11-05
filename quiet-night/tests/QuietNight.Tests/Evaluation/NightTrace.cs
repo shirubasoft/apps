@@ -27,6 +27,9 @@ public sealed class NightTrace
         OracleBoost = new float[hops * MaskerBands.Count];
     }
 
+    /// <summary>A trace with nothing in it yet, for scoring hand-made situations.</summary>
+    public static NightTrace Empty(int hops) => new(hops);
+
     /// <summary>The microphone's level in each band, as any controller would measure it.</summary>
     public float[] MixtureDb { get; }
 
