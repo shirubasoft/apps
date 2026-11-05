@@ -10,10 +10,10 @@ public sealed class DetectionTests
 {
     private static readonly ListenerSettings Settings = ListenerSettings.Default;
 
-    /// <summary>Half-weight windows, wider evidence thresholds and rejected runs, so each mechanism shows on its own.</summary>
+    /// <summary>Half-weight windows and wider evidence thresholds, so each mechanism shows on its own.</summary>
     private static readonly ListenerSettings Gradual = ListenerSettings.Default with
     {
-        WindowWeight = 0.5f, ConfirmEvidence = 2.5f, RejectEvidence = -2.5f, RejectedRunSeconds = 4,
+        WindowWeight = 0.5f, ConfirmEvidence = 2.5f, RejectEvidence = -2.5f,
     };
 
     [Theory]
@@ -51,24 +51,35 @@ public sealed class DetectionTests
     }
 
     [Fact]
-    public void RejectedSoundsStayUnmaskedAndTheirNeighboursStartRejected()
+    public void RejectedSoundsStayUnmaskedAndOnlyTheirRepeatsStartRejected()
     {
         var gate = new NoiseGate(Gradual);
-        Hops(gate, 3, needed: true);
+        Hops(gate, 3, needed: true, Low);
         Assert.True(gate.Open);
         Assert.False(gate.Apply(new Rejected(0.03f, default), gate.Episode));
         Assert.True(gate.Apply(new Rejected(0.03f, default), gate.Episode));
-        Hops(gate, 200, needed: true);
+        Hops(gate, 200, needed: true, Low);
         Assert.False(gate.Open);
         Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
-        Hops(gate, 3, needed: true);
+
+        // The same sound again is rejected as soon as it is recognised, unless the sound model says otherwise.
+        Hops(gate, NoiseGate.CompareHops + 2, needed: true, Low);
         Assert.False(gate.Open);
+        Assert.True(gate.Rejecting);
         gate.Apply(new Unsure(NoiseClass.Cat, 0.9f, default), gate.Episode);
-        Hops(gate, 2, needed: true);
+        Hops(gate, 2, needed: true, Low);
         Assert.True(gate.Open);
         Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
-        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(Gradual.RejectedRunSeconds)), needed: false);
-        Hops(gate, 2, needed: true);
+
+        // A different sound is masked once it is clear it differs.
+        Hops(gate, NoiseGate.CompareHops - 1, needed: true, High);
+        Assert.False(gate.Open);
+        Hops(gate, 2, needed: true, High);
+        Assert.True(gate.Open);
+        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1 + Gradual.RejectedRunSeconds)), needed: false);
+
+        // Long after the rejected sound, even its repeat starts afresh.
+        Hops(gate, 2, needed: true, Low);
         Assert.True(gate.Open);
     }
 
@@ -99,6 +110,23 @@ public sealed class DetectionTests
     }
 
     [Fact]
+    public void EvidenceAgainstATargetCountsOnlyAsFarAsTheSoundFilledTheWindow()
+    {
+        var gate = new NoiseGate(Settings);
+        Hops(gate, 3, needed: true);
+        gate.Apply(new Rejected(0.01f, default), gate.Episode, filled: 0.25f);
+        Assert.Equal(-NoiseGate.MaxWindowEvidence * 0.25f / Settings.FullWeightFill, gate.Evidence, 1e-4f);
+        Assert.False(gate.Rejecting);
+        Assert.True(gate.Apply(new Rejected(0.01f, default), gate.Episode, filled: Settings.FullWeightFill));
+
+        // Evidence for a target counts in full however little of the window the sound filled.
+        var other = new NoiseGate(Settings);
+        Hops(other, 3, needed: true);
+        other.Apply(new Confirmed(NoiseClass.Cat, 0.99f, new ClassProbabilities(0.01f, 0.97f, 0.01f, 0.01f)), other.Episode, filled: 0.1f);
+        Assert.True(other.Confirming);
+    }
+
+    [Fact]
     public void EvidenceAddsUpAcrossWindowsBeforeConfirming()
     {
         var gate = new NoiseGate(Gradual);
@@ -112,26 +140,46 @@ public sealed class DetectionTests
     }
 
     [Fact]
-    public void AConfirmedRunMasksTheNextSoundsWithoutWaiting()
+    public void AConfirmedRunMasksSoundsLikeItWithoutWaiting()
     {
         var gate = new NoiseGate(Gradual);
-        Hops(gate, 3, needed: true);
+        Hops(gate, 3, needed: true, Low);
         for (var window = 0; window < 2; window++)
             gate.Apply(new Confirmed(NoiseClass.Motorcycle, 0.999f, new ClassProbabilities(0.001f, 0.02f, 0.929f, 0.05f)), gate.Episode);
         Assert.True(gate.Confirming);
         Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
-        gate.Hop(0, NoiseClass.Cat, needed: true);
+        Assert.True(gate.Confirming);
+
+        // A different sound in the run waits for its own evidence; the fast detector here says it is no target.
+        Silent(gate, NoiseGate.CompareHops + 2, High);
+        Assert.False(gate.Open);
+        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
+
+        // The same engine again is masked as part of the run.
+        Silent(gate, NoiseGate.CompareHops, Low);
         Assert.True(gate.Open);
         Assert.Equal(NoiseClass.Motorcycle, gate.Noise);
         Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(Settings.ConfirmedSeconds + 2)), needed: false);
-        gate.Hop(0, NoiseClass.Cat, needed: true);
+        Silent(gate, NoiseGate.CompareHops, Low);
         Assert.False(gate.Open);
     }
 
-    private static void Hops(NoiseGate gate, int count, bool needed)
+    /// <summary>A sound rising in the low mel bands, like an engine.</summary>
+    private static readonly float[] Low = [.. Enumerable.Range(0, ListeningFormat.MelBands).Select(m => m < 8 ? 1f - m / 8f : 0f)];
+
+    /// <summary>A sound rising in the high mel bands, like a door's squeak.</summary>
+    private static readonly float[] High = [.. Enumerable.Range(0, ListeningFormat.MelBands).Select(m => m >= 24 ? (m - 23) / 8f : 0f)];
+
+    private static void Silent(NoiseGate gate, int count, float[] rise)
     {
         for (var h = 0; h < count; h++)
-            gate.Hop(0.9f, NoiseClass.Car, needed);
+            gate.Hop(0, NoiseClass.Cat, needed: true, rise);
+    }
+
+    private static void Hops(NoiseGate gate, int count, bool needed, float[]? rise = null)
+    {
+        for (var h = 0; h < count; h++)
+            gate.Hop(0.9f, NoiseClass.Car, needed, rise);
     }
 
     [Theory]

@@ -51,6 +51,7 @@ public sealed class NightListener
     private readonly bool[] frozenHistory = new bool[ListeningFormat.Hops(TimeSpan.FromSeconds(30))];
     private int frozenInWindow;
     private long requestEpisode;
+    private float requestFilled;
     private long hops;
     private long lastRequest = long.MinValue / 2;
     private long lastActive = long.MinValue / 2;
@@ -128,7 +129,8 @@ public sealed class NightListener
         frameFeatures.Compute(analyzer.MelDb, melRoom.Level, features);
         frameModel.Predict(features, probabilities);
         FrameTargetProbability = warm ? NoiseClasses.TargetProbability(probabilities) : 0;
-        Gate.Hop(FrameTargetProbability, NoiseClasses.BestTarget(probabilities), needed);
+        Gate.Hop(FrameTargetProbability, NoiseClasses.BestTarget(probabilities), needed, features.AsSpan(0, ListeningFormat.MelBands));
+        if (Gate.JustRejected) Masker.Drop();
         Masker.Update(Gate.Open && warm, analyzer.BandDb, bedtimeRoom.Peak, Gate.Confirming);
 
         // The room learns everything except a sound that is being masked, but never stays frozen for more than two
@@ -150,12 +152,16 @@ public sealed class NightListener
         // The room's picture is only ever taken from a quiet window, so a disturbance never becomes the reference.
         var quiet = hops - lastActive > QuietBeforeRoomHops;
         WantsRoom = ready && quiet && (!roomKnown || hops - lastRoom >= RoomEveryHops);
-        WantsVerdict = ready && !WantsRoom && (roomKnown || hops >= RoomFallbackHops) && recentlyNeeded && hops - lastRequest >= classifyHops;
+        // A window taken right at a sound's onset holds only the room before it, so the first look waits until the sound
+        // fills a quarter of the window.
+        var soundInWindow = Gate.EpisodeHops >= classifyHops;
+        WantsVerdict = ready && !WantsRoom && (roomKnown || hops >= RoomFallbackHops) && recentlyNeeded && soundInWindow && hops - lastRequest >= classifyHops;
         if (WantsVerdict)
         {
             classifying = true;
             lastRequest = hops;
             requestEpisode = Gate.Episode;
+            requestFilled = (float)Gate.EpisodeHops / WindowHops;
         }
         else if (WantsRoom)
         {
@@ -179,7 +185,7 @@ public sealed class NightListener
     public void Accept(SoundVerdict verdict)
     {
         classifying = false;
-        if (Gate.Apply(verdict, requestEpisode)) Masker.Drop();
+        if (Gate.Apply(verdict, requestEpisode, requestFilled)) Masker.Drop();
     }
 
     /// <summary>The sound model has learned the room from the window it was given.</summary>

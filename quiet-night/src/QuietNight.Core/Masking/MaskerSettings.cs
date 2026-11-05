@@ -29,7 +29,7 @@ public sealed record MaskerSettings(
     float HoldSeconds = 3,
     float ReleaseDbPerSecond = 3,
     float AnticipationSeconds = 0.25f,
-    float DropDbPerSecond = 60,
+    float DropDbPerSecond = 150,
     float ProvisionalHoldSeconds = 0.5f,
     float ProvisionalReleaseDbPerSecond = 10,
     float RunDipDb = float.PositiveInfinity)

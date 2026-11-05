@@ -22,8 +22,12 @@ namespace QuietNight.Core.Detection;
 /// are far from independent.
 /// </param>
 /// <param name="RunPrior">The head start a sound gets when it follows a confirmed run.</param>
-/// <param name="RejectedRunSeconds">How long after a rejected sound new sounds start out rejected, like the next chirp of a cricket.</param>
-/// <param name="RejectedRunMargin">How far below <paramref name="RejectEvidence"/> such sounds start.</param>
+/// <param name="RejectedRunSeconds">How long after a rejected sound new sounds that sound like it are rejected too, like the next knock on a door.</param>
+/// <param name="SameSoundSimilarity">How alike, by the cosine of their rise above the room, two sounds must be to belong to one run.</param>
+/// <param name="FullWeightFill">
+/// The share of a window the sound must fill before the window's evidence against a target counts in full; below it,
+/// that evidence counts in proportion.
+/// </param>
 /// <param name="OtherPrior">
 /// Log-odds added to <see cref="NoiseClass.Other"/> before a verdict. The head is trained with every class equally
 /// common, but at night most sounds that stand out are not targets.
@@ -41,9 +45,10 @@ public sealed record ListenerSettings(
     float RejectEvidence = -2f,
     float WindowWeight = 1f,
     float RunPrior = 1f,
-    float RejectedRunSeconds = 0,
-    float RejectedRunMargin = 0.5f,
-    float OtherPrior = 0)
+    float RejectedRunSeconds = 4,
+    float SameSoundSimilarity = 0.6f,
+    float OtherPrior = 0,
+    float FullWeightFill = 0.5f)
 {
     public static ListenerSettings Default { get; } = new(new MaskerSettings());
 
