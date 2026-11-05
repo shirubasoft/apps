@@ -94,7 +94,7 @@ public sealed class NightListener
     /// <summary>True when the latest hop wants the sound model to learn the quiet room from <see cref="CopyWindow"/>.</summary>
     public bool WantsRoom { get; private set; }
 
-    /// <summary>Keeps the room level from learning the current sound, as a confirmed target does.</summary>
+    /// <summary>Keeps the room level from learning the current sound, within the same freeze limit as masking.</summary>
     public bool HoldRoom { get; set; }
 
     /// <summary>True once the room level has been measured and rises mean something.</summary>
@@ -134,7 +134,7 @@ public sealed class NightListener
         // The room learns everything except a sound that is being masked, but never stays frozen for more than two
         // thirds of any 30 s: a sound that goes on that long has become the room, and an estimate that started too
         // low always catches up.
-        var frozen = warm && (HoldRoom || (Gate.Open && active && frozenInWindow < FreezeBudgetHops));
+        var frozen = warm && (HoldRoom || (Gate.Open && active)) && frozenInWindow < FreezeBudgetHops;
         var frozenSlot = (int)(hops % FreezeWindowHops);
         frozenInWindow += (frozen ? 1 : 0) - (frozenHistory[frozenSlot] ? 1 : 0);
         frozenHistory[frozenSlot] = frozen;

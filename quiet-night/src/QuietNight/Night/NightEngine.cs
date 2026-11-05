@@ -48,7 +48,7 @@ public sealed class NightEngine : IDisposable
     private bool disposed;
     private bool modelReleased;
     private float[] bedtime = new float[MaskerBands.Count];
-    private const int RouteCheckHops = 50;
+    private const int RouteCheckHops = 10;
 
     public NightEngine(Context context, NightSettings settings, DetectorHeads heads, byte[] yamnet, float[][] layers)
     {
@@ -84,6 +84,7 @@ public sealed class NightEngine : IDisposable
     {
         record = Microphone.Open(context);
         masker.Muted = true;
+        masker.OnRouteChanged(RouteChanged);
         masker.SetLevels(Volatile.Read(ref bedtime));
         masker.Start();
         running = true;
@@ -220,11 +221,22 @@ public sealed class NightEngine : IDisposable
                 routeVerified = true;
                 masker.Muted = !focusGranted;
                 break;
+            case null when routeVerified:
+                RouteChanged();
+                break;
             case false:
+                RouteChanged();
                 problem = "The masker would have played from the phone speaker, so the night stopped. Connect earbuds and start again.";
                 running = false;
                 break;
         }
+    }
+
+    /// <summary>Any change of output mutes the masker until the next check confirms it reaches earbuds again.</summary>
+    private void RouteChanged()
+    {
+        routeVerified = false;
+        masker.Muted = true;
     }
 
     private void Classify()

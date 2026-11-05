@@ -48,6 +48,9 @@ public sealed class NightService : Service
 
     public override void OnDestroy()
     {
+        // A start-up still loading models must not bring the night back once the service is gone.
+        generation++;
+        starting = false;
         TearDown();
         base.OnDestroy();
     }
@@ -146,6 +149,7 @@ public sealed class NightService : Service
             ((AudioManager?)GetSystemService(AudioService))?.AbandonAudioFocusRequest(focus);
             focus = null;
         }
+        focusGranted = false;
         if (wakeLock is { IsHeld: true }) wakeLock.Release();
         wakeLock = null;
         NightSession.Engine = null;

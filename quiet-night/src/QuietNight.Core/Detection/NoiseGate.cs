@@ -19,6 +19,12 @@ public sealed class NoiseGate(ListenerSettings settings)
     /// <summary>How much of the previous sound's evidence about which target it was carries into the next sound of a run.</summary>
     public const float ClassCarryOver = 0.5f;
 
+    /// <summary>
+    /// How much of the evidence about which target it is survives each new window, so recent windows decide and a long
+    /// run of one target cannot outvote a clear new one.
+    /// </summary>
+    public const float ClassMemory = 0.7f;
+
     private static readonly int EndAfterHops = ListeningFormat.Hops(TimeSpan.FromSeconds(1));
 
     private readonly int runHops = ListeningFormat.Hops(TimeSpan.FromSeconds(settings.ConfirmedSeconds));
@@ -92,7 +98,8 @@ public sealed class NoiseGate(ListenerSettings settings)
         {
             var classes = verdict.Classes;
             foreach (var target in NoiseClasses.Targets)
-                classEvidence[(int)target] += MathF.Log(MathF.Max(classes[target] / verdict.TargetProbability, 1e-6f));
+                classEvidence[(int)target] = ClassMemory * classEvidence[(int)target] +
+                    MathF.Log(MathF.Max(classes[target] / verdict.TargetProbability, 1e-6f));
         }
         return Rejecting && !wasRejecting;
     }

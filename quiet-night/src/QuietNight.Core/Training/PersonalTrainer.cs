@@ -26,13 +26,16 @@ public sealed record TrainingReport(
 
 /// <summary>
 /// Fine-tunes both heads on the user's recordings, mixed into their room at several loudness levels, together with
-/// replayed reference examples. The new heads are kept only if they do better on the held-back part of the
-/// recordings and do not lose more than a few points on the reference sounds.
+/// replayed reference examples. The new heads are kept only if the sound model head does at least two points better on
+/// the held-back end of the recordings, and neither head loses more than a few points there or on reference sounds
+/// they never trained on.
 /// </summary>
 public sealed class PersonalTrainer(SoundModel model, ListenerSettings settings)
 {
     public const double ValidationShare = 0.2;
     public const double AllowedReplayLoss = 0.03;
+    public const double AllowedPersonalLoss = 0.02;
+    public const double RequiredGain = 0.02;
     private const int MaxSeconds = 30;
     private const float UserWeight = 3;
     private static readonly float[] Levels = [10, 18, 26];
@@ -56,23 +59,26 @@ public sealed class PersonalTrainer(SoundModel model, ListenerSettings settings)
         var soundTrain = new LabeledSet(SoundRecognizer.FeatureCount);
         var frameValidation = new LabeledSet(FrameFeatures.Count);
         var soundValidation = new LabeledSet(SoundRecognizer.FeatureCount);
-        var beds = recordings.Where(r => !r.Label.IsTarget())
-            .Select(r => (Source: (LabeledAudio?)r, Samples: RoomBed.Loop(Trim(r.Samples))))
+        // The last fifth of each recording is held back before anything is mixed, rooms included, so no overlapping
+        // window, alternative mix or background of the same moment lands on both sides.
+        var parts = recordings.Select(r =>
+        {
+            var sound = Trim(r.Samples);
+            var held = (int)(sound.Length * ValidationShare);
+            return held >= ListeningFormat.SampleRate
+                ? (Recording: r, Training: sound[..^held], Validation: sound[^held..])
+                : (Recording: r, Training: sound, Validation: Array.Empty<float>());
+        }).ToList();
+        var beds = parts.Where(p => !p.Recording.Label.IsTarget())
+            .Select(p => (Source: (LabeledAudio?)p.Recording, Samples: RoomBed.Loop(p.Training)))
             .Where(b => b.Samples.Length >= ListeningFormat.SampleRate)
             .Take(3)
             .Append((Source: (LabeledAudio?)null, Samples: RoomBed.Create()))
             .ToList();
         var step = 0;
         var steps = recordings.Count * (Levels.Length + 1);
-        foreach (var recording in recordings)
+        foreach (var (recording, training, validation) in parts)
         {
-            // The last fifth of each recording is held back before any mixing, so no overlapping window or alternative
-            // mix of the same moment lands on both sides.
-            var sound = Trim(recording.Samples);
-            var held = (int)(sound.Length * ValidationShare);
-            var (training, validation) = held >= ListeningFormat.SampleRate
-                ? (sound[..^held], sound[^held..])
-                : (sound, Array.Empty<float>());
             var bed = beds[step % beds.Count];
             if (ReferenceEquals(bed.Source, recording)) bed = beds[^1];
             foreach (var level in Levels)
@@ -110,12 +116,19 @@ public sealed class PersonalTrainer(SoundModel model, ListenerSettings settings)
             replayBefore,
             replayAfter,
             Accepted: false);
-        var improves = Mean(report.SoundAfter, report.FrameAfter) >= Mean(report.SoundBefore, report.FrameBefore);
-        var keepsReference = replayAfter >= replayBefore - AllowedReplayLoss;
+        // The sound model head must do measurably better on the held-back recordings, and neither head may get worse on
+        // them or on the reference sounds, so one head's gain cannot hide the other's loss.
+        var improves = report.SoundAfter >= report.SoundBefore + RequiredGain && !Worse(report.FrameAfter, report.FrameBefore, AllowedPersonalLoss);
+        var keepsReference =
+            !Worse(SoftmaxTrainer.BalancedAccuracy(frameHead, frameReplayValidation), SoftmaxTrainer.BalancedAccuracy(current.Frame, frameReplayValidation), AllowedReplayLoss) &&
+            !Worse(SoftmaxTrainer.BalancedAccuracy(soundHead, soundReplayValidation), SoftmaxTrainer.BalancedAccuracy(current.Sound, soundReplayValidation), AllowedReplayLoss);
         report = report with { Accepted = recordings.Count > 0 && improves && keepsReference };
         progress?.Report(1);
         return (report.Accepted ? new DetectorHeads(frameHead, soundHead) : current, report);
     }
+
+    private static bool Worse(double after, double before, double allowed) =>
+        !double.IsNaN(after) && !double.IsNaN(before) && after < before - allowed;
 
     private static float[] Trim(float[] samples) =>
         samples.Length <= MaxSeconds * ListeningFormat.SampleRate ? samples : samples[..(MaxSeconds * ListeningFormat.SampleRate)];

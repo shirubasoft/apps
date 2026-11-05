@@ -18,8 +18,10 @@ public sealed class MaskerPlayer : IDisposable
     private readonly int[] positions;
     private readonly float[] appliedDb;
     private readonly Thread writer;
+    private readonly Lock commands = new();
     private volatile bool running;
-    private volatile bool muted;
+    private bool muted;
+    private bool released;
 
     public MaskerPlayer(float[][] loops)
     {
@@ -45,30 +47,56 @@ public sealed class MaskerPlayer : IDisposable
     }
 
     /// <summary>Silences every layer while another app holds audio focus, such as during a call.</summary>
+    /// <summary>
+    /// Silences every layer. Muting, level changes and disposal run under one lock, so a level computed on the capture
+    /// thread can never land after a mute and leave a band audible.
+    /// </summary>
     public bool Muted
     {
-        get => muted;
+        get
+        {
+            lock (commands)
+                return muted;
+        }
         set
         {
-            muted = value;
-            for (var b = 0; b < tracks.Length; b++)
-                Apply(b, appliedDb[b], force: true);
+            lock (commands)
+            {
+                muted = value;
+                for (var b = 0; b < tracks.Length; b++)
+                    Apply(b, appliedDb[b], force: true);
+            }
         }
     }
 
     public void Start()
     {
-        running = true;
-        for (var b = 0; b < tracks.Length; b++)
+        lock (commands)
         {
-            tracks[b].SetVolume(0);
-            Fill(b, BufferFrames);
-            tracks[b].Play();
+            running = true;
+            for (var b = 0; b < tracks.Length; b++)
+            {
+                tracks[b].SetVolume(0);
+                Fill(b, BufferFrames);
+                tracks[b].Play();
+            }
+            // Priming played silence; restore whatever levels were set before playback began.
+            for (var b = 0; b < tracks.Length; b++)
+                Apply(b, appliedDb[b], force: true);
         }
-        // Priming played silence; restore whatever levels were set before playback began.
-        for (var b = 0; b < tracks.Length; b++)
-            Apply(b, appliedDb[b], force: true);
         writer.Start();
+    }
+
+    /// <summary>Calls <paramref name="changed"/> whenever Android moves any layer to another output.</summary>
+    public void OnRouteChanged(Action changed)
+    {
+        foreach (var track in tracks)
+            track.AddOnRoutingChangedListener(new RoutingListener(changed), null);
+    }
+
+    private sealed class RoutingListener(Action changed) : Java.Lang.Object, IAudioRoutingOnRoutingChangedListener
+    {
+        public void OnRoutingChanged(IAudioRouting? router) => changed();
     }
 
     /// <summary>
@@ -90,15 +118,24 @@ public sealed class MaskerPlayer : IDisposable
     /// <summary>Sets each layer's level in dB relative to full scale.</summary>
     public void SetLevels(ReadOnlySpan<float> levelDb)
     {
-        for (var b = 0; b < tracks.Length; b++)
-            if (float.IsNaN(appliedDb[b]) || MathF.Abs(levelDb[b] - appliedDb[b]) >= VolumeStepDb)
-                Apply(b, levelDb[b], force: false);
+        lock (commands)
+        {
+            if (released) return;
+            for (var b = 0; b < tracks.Length; b++)
+                if (float.IsNaN(appliedDb[b]) || MathF.Abs(levelDb[b] - appliedDb[b]) >= VolumeStepDb)
+                    Apply(b, levelDb[b], force: false);
+        }
     }
 
     public void Dispose()
     {
         running = false;
         if (writer.IsAlive) writer.Join(TimeSpan.FromSeconds(1));
+        lock (commands)
+        {
+            if (released) return;
+            released = true;
+        }
         foreach (var track in tracks)
         {
             try
@@ -116,6 +153,7 @@ public sealed class MaskerPlayer : IDisposable
 
     private void Apply(int band, float levelDb, bool force)
     {
+        if (released) return;
         if (float.IsNaN(levelDb) && !force) return;
         appliedDb[band] = levelDb;
         var volume = muted || float.IsNaN(levelDb) ? 0 : Math.Clamp(MathF.Pow(10, levelDb / 20), 0, 1);

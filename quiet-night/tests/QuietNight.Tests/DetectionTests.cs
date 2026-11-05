@@ -73,6 +73,20 @@ public sealed class DetectionTests
     }
 
     [Fact]
+    public void AClearNewTargetIsNamedCorrectlyAfterALongRunOfAnother()
+    {
+        var gate = new NoiseGate(Settings);
+        Hops(gate, 3, needed: true);
+        for (var window = 0; window < 20; window++)
+            gate.Apply(new Confirmed(NoiseClass.Car, 0.95f, new ClassProbabilities(0.05f, 0.02f, 0.03f, 0.9f)), gate.Episode);
+        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
+        Hops(gate, 3, needed: true);
+        gate.Apply(new Confirmed(NoiseClass.Cat, 0.98f, new ClassProbabilities(0.02f, 0.96f, 0.01f, 0.01f)), gate.Episode);
+        gate.Hop(0.9f, NoiseClass.Car, needed: true);
+        Assert.Equal(NoiseClass.Cat, gate.Noise);
+    }
+
+    [Fact]
     public void VerdictsAboutAnEarlierSoundAreIgnored()
     {
         var gate = new NoiseGate(Settings);
