@@ -181,7 +181,9 @@ public sealed class NoiseGate(ListenerSettings settings)
     /// </summary>
     private void Compare()
     {
-        var continuesRun = hop < runUntil && Similarity(shape, confirmedShape) >= settings.SameSoundSimilarity;
+        // A run never overrides the sound model: a sound it has already ruled out stays ruled out unless later windows
+        // argue it back.
+        var continuesRun = !Rejecting && hop < runUntil && Similarity(shape, confirmedShape) >= settings.SameSoundSimilarity;
         var repeatsRejected = hop < rejectedRunUntil && Similarity(shape, rejectedShape) >= settings.SameSoundSimilarity;
         if (continuesRun && repeatsRejected)
             (continuesRun, repeatsRejected) = confirmedAt >= rejectedAt ? (true, false) : (false, true);

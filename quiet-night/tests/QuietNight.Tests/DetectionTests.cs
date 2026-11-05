@@ -202,6 +202,28 @@ public sealed class DetectionTests
         Assert.False(gate.Open);
     }
 
+    [Theory]
+    [InlineData(0.1f, 1f, 1)]
+    [InlineData(0.25f, 0.4f, 3)]
+    public void ARunDoesNotReviveASoundRuledOutBeforeItWasCompared(float probability, float filled, int verdicts)
+    {
+        var gate = new NoiseGate(Settings);
+        ConfirmLow(gate);
+        // The sound needs masking only now and then, so verdicts ruling it out arrive before its onset is compared.
+        for (var h = 0; h < NoiseGate.CompareHops - 1; h++)
+        {
+            gate.Hop(0.9f, NoiseClass.Car, needed: true, Low);
+            Hops(gate, 10, needed: false);
+        }
+        for (var v = 0; v < verdicts; v++)
+            gate.Apply(new Rejected(probability, default), gate.Episode, filled);
+        Assert.True(gate.Rejecting);
+        gate.Hop(0.9f, NoiseClass.Car, needed: true, Low);
+        Assert.True(gate.Rejecting);
+        Assert.False(gate.Confirming);
+        Assert.False(gate.Open);
+    }
+
     [Fact]
     public void ADifferentSoundInARunGetsNoHeadStart()
     {
