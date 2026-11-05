@@ -11,12 +11,14 @@ namespace QuietNight.Training;
 /// Where the models live: the sound model and reference heads ship inside the app; heads trained on the user's
 /// recordings are saved in app storage and used instead until the user resets them. Personal heads remember which
 /// sound model they were trained on: after an update that changes it, they no longer fit its features, so they are
-/// set aside and the user's recordings stay ready to train again.
+/// set aside and the user's recordings stay ready to train again. Personal heads and their record are published
+/// together by renaming a finished folder, and every read and change of them takes the same lock.
 /// </summary>
 public static class ModelStore
 {
     private const string PersonalInfoFile = "personal.txt";
     private static readonly SemaphoreSlim Gate = new(1, 1);
+    private static readonly SemaphoreSlim PersonalGate = new(1, 1);
     private static byte[]? yamnet;
     private static string? soundModelId;
     private static float[][]? layers;
@@ -52,7 +54,15 @@ public static class ModelStore
     public static async Task ForgetIncompatibleAsync()
     {
         await YamnetAsync();
-        if (IsPersonal && ReadPersonalInfo()?.SoundModel != soundModelId) Reset();
+        await PersonalGate.WaitAsync();
+        try
+        {
+            ForgetIncompatible();
+        }
+        finally
+        {
+            PersonalGate.Release();
+        }
     }
 
     /// <summary>The masking noise layers, built once per process.</summary>
@@ -60,17 +70,21 @@ public static class ModelStore
 
     public static async Task<DetectorHeads> HeadsAsync()
     {
-        await ForgetIncompatibleAsync();
-        if (IsPersonal)
+        await YamnetAsync();
+        await PersonalGate.WaitAsync();
+        try
         {
-            try
-            {
+            ForgetIncompatible();
+            if (IsPersonal)
                 return DetectorHeads.Load(name => File.OpenRead(Path.Combine(PersonalDirectory, name)));
-            }
-            catch (Exception e) when (e is IOException or InvalidDataException or ArgumentException)
-            {
-                Reset();
-            }
+        }
+        catch (Exception e) when (e is IOException or InvalidDataException or ArgumentException or UnauthorizedAccessException)
+        {
+            DeletePersonal();
+        }
+        finally
+        {
+            PersonalGate.Release();
         }
         return await BundledHeadsAsync();
     }
@@ -90,12 +104,28 @@ public static class ModelStore
         return DetectorHeads.LoadReference(name => new MemoryStream(files[name]));
     }
 
+    /// <summary>Writes the heads and their record to a fresh folder, then swaps it in for the current personal heads.</summary>
     public static async Task SavePersonalAsync(DetectorHeads heads, int recordings)
     {
         await YamnetAsync();
-        heads.Save(PersonalDirectory);
-        File.WriteAllText(Path.Combine(PersonalDirectory, PersonalInfoFile),
-            $"{DateTimeOffset.Now.ToString("o", CultureInfo.InvariantCulture)} {recordings} {soundModelId}");
+        await PersonalGate.WaitAsync();
+        try
+        {
+            var staging = PersonalDirectory + ".new";
+            var previous = PersonalDirectory + ".old";
+            if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
+            heads.Save(staging);
+            File.WriteAllText(Path.Combine(staging, PersonalInfoFile),
+                $"{DateTimeOffset.Now.ToString("o", CultureInfo.InvariantCulture)} {recordings} {soundModelId}");
+            if (Directory.Exists(previous)) Directory.Delete(previous, recursive: true);
+            if (Directory.Exists(PersonalDirectory)) Directory.Move(PersonalDirectory, previous);
+            Directory.Move(staging, PersonalDirectory);
+            if (Directory.Exists(previous)) Directory.Delete(previous, recursive: true);
+        }
+        finally
+        {
+            PersonalGate.Release();
+        }
     }
 
     private static (DateTimeOffset Trained, int Recordings, string SoundModel)? ReadPersonalInfo()
@@ -108,7 +138,25 @@ public static class ModelStore
             : null;
     }
 
-    public static void Reset()
+    public static async Task ResetAsync()
+    {
+        await PersonalGate.WaitAsync();
+        try
+        {
+            DeletePersonal();
+        }
+        finally
+        {
+            PersonalGate.Release();
+        }
+    }
+
+    private static void ForgetIncompatible()
+    {
+        if (IsPersonal && ReadPersonalInfo()?.SoundModel != soundModelId) DeletePersonal();
+    }
+
+    private static void DeletePersonal()
     {
         if (Directory.Exists(PersonalDirectory))
             Directory.Delete(PersonalDirectory, recursive: true);

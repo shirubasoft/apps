@@ -54,11 +54,16 @@ public sealed class TrainPage : ContentPage
         base.OnAppearing();
         Refresh();
         // Heads trained on an earlier sound model no longer fit its features; the recordings stay to train again.
-        if (ModelStore.IsPersonal)
+        if (!ModelStore.IsPersonal) return;
+        try
         {
             await ModelStore.ForgetIncompatibleAsync();
-            Refresh();
         }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            result.Text = $"Could not check your detector: {e.Message}";
+        }
+        Refresh();
     }
 
     protected override void OnDisappearing()
@@ -173,7 +178,7 @@ public sealed class TrainPage : ContentPage
     private async Task ResetAsync()
     {
         if (!await DisplayAlertAsync("Use the prebuilt model?", "The detector trained on your recordings is removed. Your recordings stay.", "Reset", "Cancel")) return;
-        ModelStore.Reset();
+        await ModelStore.ResetAsync();
         result.Text = "Back to the prebuilt model.";
         Refresh();
     }
