@@ -52,18 +52,17 @@ public sealed class TrainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        Refresh();
-        // Heads trained on an earlier sound model no longer fit its features; the recordings stay to train again.
-        if (!ModelStore.IsPersonal) return;
         try
         {
+            Refresh();
+            // Heads trained on an earlier sound model no longer fit its features; the recordings stay to train again.
             await ModelStore.ForgetIncompatibleAsync();
+            Refresh();
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             result.Text = $"Could not check your detector: {e.Message}";
         }
-        Refresh();
     }
 
     protected override void OnDisappearing()

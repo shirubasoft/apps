@@ -29,8 +29,24 @@ public static class ModelStore
 
     public static bool IsPersonal => File.Exists(Path.Combine(PersonalDirectory, DetectorHeads.SoundFile));
 
-    /// <summary>When the personal heads were trained and from how many recordings, or null for the prebuilt heads.</summary>
-    public static (DateTimeOffset Trained, int Recordings)? PersonalInfo => ReadPersonalInfo() is { } info ? (info.Trained, info.Recordings) : null;
+    /// <summary>
+    /// When the personal heads were trained and from how many recordings, or null for the prebuilt heads. A save swapping
+    /// the folder in at that moment reads as null; the page asking refreshes again afterwards.
+    /// </summary>
+    public static (DateTimeOffset Trained, int Recordings)? PersonalInfo
+    {
+        get
+        {
+            try
+            {
+                return ReadPersonalInfo() is { } info ? (info.Trained, info.Recordings) : null;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+    }
 
     public static async Task<byte[]> YamnetAsync()
     {
@@ -153,8 +169,25 @@ public static class ModelStore
 
     private static void ForgetIncompatible()
     {
+        Recover();
         if (IsPersonal && ReadPersonalInfo()?.SoundModel != soundModelId) DeletePersonal();
     }
+
+    /// <summary>
+    /// Finishes a save the process did not live to complete: when the personal folder is missing, a fully written new
+    /// folder is promoted, or else the previous one is put back.
+    /// </summary>
+    private static void Recover()
+    {
+        if (Directory.Exists(PersonalDirectory)) return;
+        var staging = PersonalDirectory + ".new";
+        var previous = PersonalDirectory + ".old";
+        if (Complete(staging)) Directory.Move(staging, PersonalDirectory);
+        else if (Complete(previous)) Directory.Move(previous, PersonalDirectory);
+    }
+
+    private static bool Complete(string directory) =>
+        new[] { DetectorHeads.FrameFile, DetectorHeads.SoundFile, PersonalInfoFile }.All(name => File.Exists(Path.Combine(directory, name)));
 
     private static void DeletePersonal()
     {
