@@ -2,9 +2,11 @@
 
 Examples follow the C# trainer (`ExampleBuilder`): a clip from the training split is mixed into a training room at a
 level above the room measured as in `Loudness.ActiveRmsDb`, and 0.96 s windows ending anywhere from its onset, through
-its pauses, to a second after it ends are judged next to the same room. A window holds the clip's class when the clip
-alone stands out in at least 30 % of its hops and holds nothing when it does in at most 2 %; windows in between are
-left out, and harmless clips are always Other. The head mirrors the app's: a linear softmax over the embedding and
+its pauses, to a second after it ends are judged next to the same room. A hop holds the clip when, as in
+`ExampleBuilder`, the clip alone is louder than the room alone in some masking band where the mixture rises at least
+6 dB above the room's median, and the clip is above its own quiet floor; band levels come from the same analysis as
+`HopAnalyzer`. A window holds the clip's class when the clip holds at least 30 % of its hops and holds nothing at
+2 % or less; windows in between are left out, and harmless clips are always Other. The head mirrors the app's: a linear softmax over the embedding and
 AudioSet log-odds, each next to its difference from the room's. The validation split is only reported on. The defaults
 built the bundled model:
 
@@ -14,6 +16,7 @@ built the bundled model:
 import argparse, hashlib, json, os, subprocess, sys, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np, torch, torch.nn as nn, torch.nn.functional as F
+from scipy.signal import lfilter
 from sklearn.metrics import roc_auc_score
 from yamnet_torch import YamnetTorch, YamnetExport, WINDOW
 
@@ -23,7 +26,16 @@ GROUPS = {"other": 0, "cat": 1, "motorcycle": 2, "car": 3}
 LEVELS = {"other": (4, 24), "cat": (6, 27), "motorcycle": (8, 32), "car": (6, 27)}
 ACTIVE_SHARE, QUIET_SHARE = 0.30, 0.02
 ROOM_DB = -50
-PREPROCESSING = "loudest 10 s clips, 30 s rooms; active RMS over 100 ms blocks within 20 dB; own floor min(p10+6, p90-10)"
+ACTIVITY_DB = 6
+PREPROCESSING = ("loudest 10 s clips, 30 s rooms; active RMS over 100 ms blocks within 20 dB; own floor min(p10+6, p90-10); "
+                 "HopAnalyzer band powers, 40 ms smoothing; band dominance with 6 dB rise over the room median")
+# HopAnalyzer: a 400-sample symmetric Hann window ending at each hop, a 512-point FFT scaled so a band's bins add up to
+# its mean square, the seven octave masking bands, and power smoothing over 40 ms.
+HANN = 0.5 - 0.5 * np.cos(2 * np.pi * np.arange(400) / 399)
+POWER_SCALE = 2 / (512 * np.sum(HANN ** 2))
+BAND_EDGES = [(1, 4), (4, 8), (8, 16), (16, 32), (32, 64), (64, 128), (128, 257)]
+SMOOTH_ALPHA = 1 - np.exp(-0.01 / 0.04)
+CONTEXT_HOPS = 20
 
 
 def decode(path):
@@ -43,6 +55,27 @@ def loudest(x, seconds):
 def hop_db(x):
     n = len(x) // HOP
     return 10 * np.log10((x[: n * HOP].reshape(n, HOP).astype(np.float32) ** 2).mean(1) + 1e-12)
+
+
+def band_power(x):
+    """Smoothed masking-band power for each hop of x, as HopAnalyzer computes it once primed: (hops, 7)."""
+    x = np.concatenate([np.zeros(400 - HOP, np.float32), x.astype(np.float32)])
+    frames = np.lib.stride_tricks.sliding_window_view(x, 400)[::HOP]
+    power = np.abs(np.fft.rfft(frames * HANN, 512)) ** 2 * POWER_SCALE
+    bands = np.stack([power[:, a:b].sum(1) for a, b in BAND_EDGES], 1)
+    return lfilter([SMOOTH_ALPHA], [1, SMOOTH_ALPHA - 1], bands, axis=0, zi=(1 - SMOOTH_ALPHA) * bands[:1])[0]
+
+
+def to_db(power):
+    return 10 * np.log10(power + 1e-12)
+
+
+def stands_out(sound, room, room_median_db, floor_db):
+    """For each hop: the sound alone is louder than the room alone in a band where the mixture rises at least
+    ACTIVITY_DB above the room's median, and the sound alone is above its own floor, as in ExampleBuilder."""
+    s, r, m = band_power(sound), band_power(room), band_power(sound + room)
+    dominates = ((s > r) & (to_db(m) - room_median_db >= ACTIVITY_DB)).any(1)
+    return dominates & (to_db(s.sum(1)) > floor_db)
 
 
 def active_rms_db(x):
@@ -65,15 +98,34 @@ class Clip:
         self.active_db = active_rms_db(x)
 
 
-def fingerprint(manifest, splits):
+class Room:
+    def __init__(self, x):
+        self.x = x.astype(np.float16)
+        self.median_db = np.median(to_db(band_power(x)), 0)
+        self.rms_db = rms_db(x)
+
+
+def audio_digest(manifest, audio, splits):
+    """A digest of the audio files the splits would use, so a re-downloaded or replaced file invalidates the cache."""
+    h = hashlib.sha256()
+    for e in json.load(open(manifest)):
+        if e["split"] not in splits: continue
+        path = f"{audio}/{e['id']}.mp3"
+        h.update(f"{e['id']}:".encode())
+        h.update(hashlib.sha256(open(path, "rb").read()).digest() if os.path.exists(path) else b"missing")
+    return h.hexdigest()
+
+
+def fingerprint(manifest, splits, audio=None):
     h = hashlib.sha256(open(manifest, "rb").read())
     h.update(json.dumps([sorted(splits), PREPROCESSING, sorted(GROUPS)]).encode())
+    if audio is not None: h.update(audio_digest(manifest, audio, splits).encode())
     return h.hexdigest()
 
 
 def load(manifest, audio, splits, cache):
     """Decodes the splits' clips, reusing a cache only when it was made from this manifest and preprocessing."""
-    key = fingerprint(manifest, splits)
+    key = fingerprint(manifest, splits, audio)
     if os.path.exists(cache):
         saved = torch.load(cache, weights_only=False)
         if saved.get("fingerprint") == key:
@@ -90,12 +142,13 @@ def load(manifest, audio, splits, cache):
         if e["group"] == "background":
             x = loudest(x, 30)
             if len(x) < SR: inventory["missing"].append(e["id"]); continue
-            data[e["split"]]["rooms"].append(x.astype(np.float16))
+            data[e["split"]]["rooms"].append(Room(x))
         else:
             x = loudest(x, 10)
             if len(x) < SR // 2: inventory["missing"].append(e["id"]); continue
             data[e["split"]][e["group"]].append(Clip(x))
-        inventory["used"].append({"id": e["id"], "split": e["split"], "group": e["group"], "sha256": e.get("sha256")})
+        inventory["used"].append({"id": e["id"], "split": e["split"], "group": e["group"],
+                                  "sha256": hashlib.sha256(open(path, "rb").read()).hexdigest()})
     torch.save({"fingerprint": key, "data": data, "inventory": inventory}, cache)
     return data, inventory
 
@@ -108,32 +161,29 @@ def segment(rng, room, n, gain):
 def example(rng, data):
     """One window and two windows of the same room, with the window's class, or None when it is left out."""
     room = data["rooms"][rng.integers(len(data["rooms"]))]
-    gain = 10 ** ((ROOM_DB + rng.uniform(-6, 6) - rms_db(room)) / 20)
-    refs = [segment(rng, room, WINDOW, gain) for _ in range(2)]
+    gain_db = ROOM_DB + rng.uniform(-6, 6) - room.rms_db
+    gain = 10 ** (gain_db / 20)
+    refs = [segment(rng, room.x, WINDOW, gain) for _ in range(2)]
     group = rng.choice(["room", "other", "cat", "motorcycle", "car"], p=[0.10, 0.30, 0.24, 0.18, 0.18])
     if group == "room":
-        window, label = segment(rng, room, WINDOW, gain), 0
+        window, label = segment(rng, room.x, WINDOW, gain), 0
     else:
         clip = data[group][rng.integers(len(data[group]))]
         length = len(clip.x)
         # Window ends: a third at the onset, the rest anywhere through the clip and a second past its end.
         end = int(rng.uniform(0, 1.0) * SR) if rng.random() < 0.35 else int(rng.uniform(0.1 * SR, length + SR))
-        bed = segment(rng, room, WINDOW, gain)
+        context = CONTEXT_HOPS * HOP
+        bed = segment(rng, room.x, WINDOW + context, gain)
         level = rng.uniform(*LEVELS[group])
-        scale = 10 ** ((rms_db(bed) + level - clip.active_db) / 20)
-        start = end - WINDOW
+        scale = 10 ** ((rms_db(bed[context:]) + level - clip.active_db) / 20)
+        start = end - WINDOW - context
         lo, hi = max(0, start), min(length, end)
-        window = bed.copy()
+        placed = np.zeros(WINDOW + context, np.float32)
         if hi > lo:
-            window[lo - start:hi - start] += clip.x[lo:hi].astype(np.float32) * scale
-        # The clip stands out in a hop when it is above its own floor and louder than the room there.
-        room_db = hop_db(bed)
-        stands_out = 0
-        for h in range(HOPS):
-            c = (start + h * HOP) // HOP
-            if 0 <= c < len(clip.hop_db) and clip.hop_db[c] > clip.floor and clip.hop_db[c] + 20 * np.log10(scale) > room_db[h]:
-                stands_out += 1
-        share = stands_out / HOPS
+            placed[lo - start:hi - start] = clip.x[lo:hi].astype(np.float32) * scale
+        window = (bed + placed)[context:]
+        active = stands_out(placed, bed, room.median_db + gain_db, clip.floor + 20 * np.log10(scale))[CONTEXT_HOPS:]
+        share = active.mean()
         if group == "other":
             label = 0
         elif share >= ACTIVE_SHARE:
@@ -207,7 +257,7 @@ def main():
     torch.manual_seed(args.seed)
     device = "cuda"
     data, inventory = load(args.manifest, args.audio, ("train", "validation"), os.path.join(args.out, "clips.pt"))
-    json.dump({"args": vars(args), "fingerprint": fingerprint(args.manifest, ("train", "validation")), **inventory},
+    json.dump({"args": vars(args), "fingerprint": fingerprint(args.manifest, ("train", "validation"), args.audio), **inventory},
               open(os.path.join(args.out, "inputs.json"), "w"), indent=1)
     print({s: {k: len(v) for k, v in d.items()} for s, d in data.items()}, "missing", len(inventory["missing"]), flush=True)
     fixed = [batch(np.random.default_rng(7), data["validation"], 256)]
