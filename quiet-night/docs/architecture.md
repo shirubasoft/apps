@@ -49,7 +49,7 @@ Noises the user switches off on **Night** count as harmless in the sound model's
 
 ## Masking
 
-Each of the seven octave bands rises by how far it exceeds the bedtime cover, plus a 3 dB margin, up to the user's strongest boost. A sustained rise, like an approaching engine, is extrapolated a quarter second ahead so the masker is already loud enough when the earbuds play it.
+Each of the seven octave bands rises by how far it exceeds the bedtime cover, plus a 3 dB margin, up to the loudest rise the user allows. Lowering that limit during a night caps every band from the next hop; the bedtime levels keep the headroom the night started with. A sustained rise, like an approaching engine, is extrapolated a quarter second ahead so the masker is already loud enough when the earbuds play it.
 
 - A provisional boost holds for 0.5 s and fades at 10 dB/s.
 - A confirmed boost holds for 3 s and fades at 3 dB/s, so the masker swells and settles instead of pumping with each meow.
@@ -63,7 +63,7 @@ The sound model is fine-tuned offline by `training/finetune.py`. It starts from 
 Both heads are multinomial logistic regressions, trained with AdamW by the same C# code in three places:
 
 - `QuietNight.Trainer` builds the bundled heads from the training split of the reference sounds and reports accuracy on the validation split.
-- The **Train** tab fine-tunes them on the phone. It mixes the user's recordings into their room at 10, 18 and 26 dB and adds replayed reference examples. The last fifth of each recording is held back before any mixing. New heads are kept only when the sound head does at least two points better on the held-back recordings, and neither head loses more than two points there or three points on reference sounds it never trained on.
+- The **Teach** tab fine-tunes them on the phone. It mixes the user's recordings into their room at 10, 18 and 26 dB and adds replayed reference examples. The last fifth of each recording is held back before any mixing. New heads are kept only when the sound head does at least two points better on the held-back recordings, and neither head loses more than two points there or three points on reference sounds it never trained on.
 - The tests check that fine-tuning learns new examples without forgetting.
 
 `ExampleBuilder` labels examples the way the app hears them. A sound is laid over a room after four seconds of quiet, with phone-microphone self-noise, and passes through the same listener. A hop counts as the sound's class only where the sound alone stands out from both its own quiet parts and the room.
