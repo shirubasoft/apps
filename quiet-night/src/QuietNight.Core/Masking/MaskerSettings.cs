@@ -15,13 +15,24 @@ namespace QuietNight.Core.Masking;
 /// How far ahead a rising sound is extrapolated, so the masker is already loud enough when it reaches the ear. Bluetooth
 /// earbuds play about a quarter of a second late, so that is the default.
 /// </param>
+/// <param name="DropDbPerSecond">How fast a boost falls once the sound model says it was a false alarm.</param>
+/// <param name="ProvisionalHoldSeconds">How long a boost the sound model has not confirmed yet is held.</param>
+/// <param name="ProvisionalReleaseDbPerSecond">How fast a boost the sound model has not confirmed yet fades.</param>
+/// <param name="RunDipDb">
+/// During a confirmed run each band stays within this much of the run's loudest boost, so the next meow or car is
+/// already covered when it arrives, Bluetooth delay or not.
+/// </param>
 public sealed record MaskerSettings(
     float HeadroomDb = 6,
     float MaxBoostDb = 30,
     float MarginDb = 3,
     float HoldSeconds = 3,
     float ReleaseDbPerSecond = 3,
-    float AnticipationSeconds = 0.25f)
+    float AnticipationSeconds = 0.25f,
+    float DropDbPerSecond = 60,
+    float ProvisionalHoldSeconds = 0.5f,
+    float ProvisionalReleaseDbPerSecond = 10,
+    float RunDipDb = float.PositiveInfinity)
 {
     /// <summary>The most a rising sound is extrapolated ahead.</summary>
     public const float MaxAnticipationDb = 12;

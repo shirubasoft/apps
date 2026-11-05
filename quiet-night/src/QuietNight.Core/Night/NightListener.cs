@@ -21,7 +21,8 @@ public sealed class NightListener
     private static readonly int RoomEveryHops = ListeningFormat.Hops(TimeSpan.FromSeconds(10));
     private static readonly int QuietBeforeRoomHops = ListeningFormat.Hops(TimeSpan.FromSeconds(1.2));
     private static readonly int RoomFallbackHops = ListeningFormat.Hops(TimeSpan.FromSeconds(3));
-    private static readonly int LongestHeldHops = ListeningFormat.Hops(TimeSpan.FromSeconds(20));
+    private static readonly int FreezeWindowHops = ListeningFormat.Hops(TimeSpan.FromSeconds(30));
+    private static readonly int FreezeBudgetHops = FreezeWindowHops * 2 / 3;
 
     /// <summary>How long the listener only learns the room after starting; microphones often begin with a ramp.</summary>
     public static readonly TimeSpan Settling = TimeSpan.FromSeconds(3);
@@ -47,6 +48,9 @@ public sealed class NightListener
     private int ringPosition;
     private bool roomKnown;
     private int activeRun;
+    private readonly bool[] frozenHistory = new bool[ListeningFormat.Hops(TimeSpan.FromSeconds(30))];
+    private int frozenInWindow;
+    private long requestEpisode;
     private long hops;
     private long lastRequest = long.MinValue / 2;
     private long lastActive = long.MinValue / 2;
@@ -127,9 +131,13 @@ public sealed class NightListener
         Gate.Hop(FrameTargetProbability, NoiseClasses.BestTarget(probabilities), needed);
         Masker.Update(Gate.Open && warm, analyzer.BandDb, bedtimeRoom.Peak, Gate.Confirming);
 
-        // The room learns everything except a sound that is being masked, unless that sound has gone on for so long
-        // that it has become the room.
-        var frozen = warm && (HoldRoom || (Gate.Open && active && activeRun < LongestHeldHops));
+        // The room learns everything except a sound that is being masked, but never stays frozen for more than two
+        // thirds of any 30 s: a sound that goes on that long has become the room, and an estimate that started too
+        // low always catches up.
+        var frozen = warm && (HoldRoom || (Gate.Open && active && frozenInWindow < FreezeBudgetHops));
+        var frozenSlot = (int)(hops % FreezeWindowHops);
+        frozenInWindow += (frozen ? 1 : 0) - (frozenHistory[frozenSlot] ? 1 : 0);
+        frozenHistory[frozenSlot] = frozen;
         melRoom.Update(analyzer.MelDb, frozen);
         bandRoom.Update(analyzer.BandDb, frozen);
         // The bedtime cover takes in the room's brief swells, such as crickets or drips, but not sounds that stand out
@@ -139,13 +147,15 @@ public sealed class NightListener
         // The sound model is only asked about sounds that need masking: nothing else changes what the masker does.
         var recentlyNeeded = hops - lastNeeded < classifyHops * 2;
         var ready = !classifying && warm && hops >= WindowHops;
-        var firstRoom = !roomKnown && hops - lastRoom >= RoomEveryHops;
-        WantsRoom = ready && (firstRoom || (hops - lastActive > QuietBeforeRoomHops && hops - lastRoom >= RoomEveryHops));
+        // The room's picture is only ever taken from a quiet window, so a disturbance never becomes the reference.
+        var quiet = hops - lastActive > QuietBeforeRoomHops;
+        WantsRoom = ready && quiet && (!roomKnown || hops - lastRoom >= RoomEveryHops);
         WantsVerdict = ready && !WantsRoom && (roomKnown || hops >= RoomFallbackHops) && recentlyNeeded && hops - lastRequest >= classifyHops;
         if (WantsVerdict)
         {
             classifying = true;
             lastRequest = hops;
+            requestEpisode = Gate.Episode;
         }
         else if (WantsRoom)
         {
@@ -169,7 +179,7 @@ public sealed class NightListener
     public void Accept(SoundVerdict verdict)
     {
         classifying = false;
-        if (Gate.Apply(verdict)) Masker.Drop();
+        if (Gate.Apply(verdict, requestEpisode)) Masker.Drop();
     }
 
     /// <summary>The sound model has learned the room from the window it was given.</summary>

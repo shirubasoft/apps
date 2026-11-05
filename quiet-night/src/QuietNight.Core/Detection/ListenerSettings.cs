@@ -15,20 +15,48 @@ namespace QuietNight.Core.Detection;
 /// <param name="RejectProbability">A single window below this probability is reported as no target.</param>
 /// <param name="ConfirmedSeconds">After a confirmed sound ends, new sounds join its run for this long; cats and traffic come in runs.</param>
 /// <param name="ClassifyEverySeconds">How often the sound model runs while something needs masking.</param>
+/// <param name="ConfirmEvidence">Summed, weighted log-odds that confirm the current sound as a target.</param>
+/// <param name="RejectEvidence">Summed, weighted log-odds that rule the current sound out.</param>
+/// <param name="WindowWeight">
+/// How much each window's log-odds count. Windows of 0.96 s every 0.24 s overlap by three quarters, so their verdicts
+/// are far from independent.
+/// </param>
+/// <param name="RunPrior">The head start a sound gets when it follows a confirmed run.</param>
+/// <param name="RejectedRunSeconds">How long after a rejected sound new sounds start out rejected, like the next chirp of a cricket.</param>
+/// <param name="RejectedRunMargin">How far below <paramref name="RejectEvidence"/> such sounds start.</param>
+/// <param name="OtherPrior">
+/// Log-odds added to <see cref="NoiseClass.Other"/> before a verdict. The head is trained with every class equally
+/// common, but at night most sounds that stand out are not targets.
+/// </param>
 public sealed record ListenerSettings(
     MaskerSettings Masker,
     float ActivityDb = 6,
-    float ProvisionalProbability = 0.3f,
+    float ProvisionalProbability = 0.4f,
     int ProvisionalHops = 2,
     float ConfirmProbability = 0.7f,
     float RejectProbability = 0.35f,
     float ConfirmedSeconds = 8,
-    float ClassifyEverySeconds = 0.24f)
+    float ClassifyEverySeconds = 0.24f,
+    float ConfirmEvidence = 2f,
+    float RejectEvidence = -2f,
+    float WindowWeight = 1f,
+    float RunPrior = 1f,
+    float RejectedRunSeconds = 0,
+    float RejectedRunMargin = 0.5f,
+    float OtherPrior = 0)
 {
     public static ListenerSettings Default { get; } = new(new MaskerSettings());
 
-    public SoundVerdict Judge(ReadOnlySpan<float> probabilities)
+    public SoundVerdict Judge(Span<float> probabilities)
     {
+        if (OtherPrior != 0)
+        {
+            var other = probabilities[(int)NoiseClass.Other] * MathF.Exp(OtherPrior);
+            var total = other + 1 - probabilities[(int)NoiseClass.Other];
+            probabilities[(int)NoiseClass.Other] = other / total;
+            for (var c = 1; c < probabilities.Length; c++)
+                probabilities[c] /= total;
+        }
         var target = NoiseClasses.TargetProbability(probabilities);
         var likely = NoiseClasses.BestTarget(probabilities);
         var classes = ClassProbabilities.From(probabilities);
