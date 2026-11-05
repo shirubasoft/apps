@@ -26,6 +26,9 @@ namespace QuietNight.Tests.Evaluation;
 /// <param name="HopsAfterFirstSecond">Hops after the sound's first second.</param>
 /// <param name="BoostedAfterFirstSecond">Those hops with the masker noticeably boosted.</param>
 /// <param name="ReleaseSeconds">How long after the sound ended the masker stayed noticeably boosted.</param>
+/// <param name="Whole">Coverage over every needing hop, at once and through the delayed link, for the app and for the oracle controller.</param>
+/// <param name="BoostedSeconds">How long the masker was noticeably boosted during the sound.</param>
+/// <param name="PeakBoostDb">The largest boost during the sound.</param>
 public sealed record EventScore(
     ScenarioEvent Event,
     int NeedingHops,
@@ -39,7 +42,10 @@ public sealed record EventScore(
     double BoostedShare,
     int HopsAfterFirstSecond,
     int BoostedAfterFirstSecond,
-    double ReleaseSeconds)
+    double ReleaseSeconds,
+    WholeCoverage Whole,
+    double BoostedSeconds,
+    float PeakBoostDb)
 {
     public const float ToleranceDb = 1;
     public const float NoticeableBoostDb = 3;
@@ -113,6 +119,9 @@ public sealed record EventScore(
         var released = end;
         while (released < trace.Hops && trace.MaxBoostAt(released) > NoticeableBoostDb)
             released++;
+        var peak = 0f;
+        for (var h = e.StartHop; h < end; h++)
+            peak = MathF.Max(peak, trace.MaxBoostAt(h));
 
         double? Milliseconds(int? from, int? to) => from is { } f
             ? to is { } t ? (t - f) * ListeningFormat.HopSeconds * 1000 : double.PositiveInfinity
@@ -120,6 +129,49 @@ public sealed record EventScore(
         return new EventScore(e, needing, maskedNow, needingLate, maskedLate,
             Milliseconds(firstNeed, firstRise), Milliseconds(firstNeed, firstMasked), recognised, confirmed.Count,
             (double)boosted / Math.Max(1, end - e.StartHop), later, boostedLater,
-            (released - end) * ListeningFormat.HopSeconds);
+            (released - end) * ListeningFormat.HopSeconds, WholeCoverage.Of(trace, e, covered, bluetoothHops),
+            boosted * ListeningFormat.HopSeconds, peak);
     }
+}
+
+/// <summary>Needing hops of a whole sound, and how many the app's and the oracle's boosts covered, at once and through the delay.</summary>
+public sealed record WholeCoverage(int Needing, int App, int AppLate, int Oracle, int OracleLate)
+{
+    public double AppShare => Share(App);
+
+    public double AppLateShare => Share(AppLate);
+
+    public double OracleShare => Share(Oracle);
+
+    public double OracleLateShare => Share(OracleLate);
+
+    public static WholeCoverage Of(NightTrace trace, ScenarioEvent e, ReadOnlySpan<float> covered, int delay)
+    {
+        int needing = 0, app = 0, appLate = 0, oracle = 0, oracleLate = 0;
+        for (var h = e.StartHop; h < Math.Min(e.EndHop, trace.Hops); h++)
+        {
+            bool needs = false, a = true, al = true, o = true, ol = true;
+            for (var b = 0; b < MaskerBands.Count; b++)
+            {
+                var i = h * MaskerBands.Count + b;
+                if (trace.SoundPower[i] < trace.RoomPower[i]) continue;
+                var need = HopAnalyzer.ToDb(trace.SoundPower[i] + trace.RoomPower[i]) - covered[b] - EventScore.ToleranceDb;
+                if (need + EventScore.ToleranceDb <= 0) continue;
+                needs = true;
+                a &= trace.BoostAt(h, b) >= need;
+                al &= trace.BoostAt(h - delay, b) >= need;
+                o &= trace.OracleBoostAt(h, b) >= need;
+                ol &= trace.OracleBoostAt(h - delay, b) >= need;
+            }
+            if (!needs) continue;
+            needing++;
+            if (a) app++;
+            if (al) appLate++;
+            if (o) oracle++;
+            if (ol) oracleLate++;
+        }
+        return new WholeCoverage(needing, app, appLate, oracle, oracleLate);
+    }
+
+    private double Share(int part) => Needing == 0 ? 1 : (double)part / Needing;
 }

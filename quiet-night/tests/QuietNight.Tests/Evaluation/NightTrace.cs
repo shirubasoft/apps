@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using QuietNight.Core.Analysis;
 using QuietNight.Core.Detection;
+using QuietNight.Core.Masking;
 using QuietNight.Core.Night;
 using QuietNight.Core.Training;
 
@@ -22,7 +23,18 @@ public sealed class NightTrace
         RoomPower = new float[hops * MaskerBands.Count];
         GateOpen = new bool[hops];
         Masking = new NoiseClass[hops];
+        MixtureDb = new float[hops * MaskerBands.Count];
+        OracleBoost = new float[hops * MaskerBands.Count];
     }
+
+    /// <summary>The microphone's level in each band, as any controller would measure it.</summary>
+    public float[] MixtureDb { get; }
+
+    /// <summary>
+    /// The boosts of an oracle controller: the same masker, delay, limits and release, but told exactly when a target
+    /// sound is present and how loud the room really is. What it cannot cover, no causal controller could.
+    /// </summary>
+    public float[] OracleBoost { get; }
 
     /// <summary>
     /// How long a sound-model verdict takes to come back: 150 ms, a conservative allowance for one mid-range phone core
@@ -74,6 +86,7 @@ public sealed class NightTrace
         var listener = new NightListener(heads.Frame, settings);
         var soundAlone = new HopAnalyzer();
         var roomAlone = new HopAnalyzer();
+        var mixtureAlone = new HopAnalyzer();
         var mixture = scenario.Mixture();
         var window = new float[SoundModel.WindowSamples];
         (long Due, long Requested, SoundVerdict Verdict)? pending = null;
@@ -112,6 +125,8 @@ public sealed class NightTrace
             }
             soundAlone.Process(scenario.Sounds.AsSpan(range));
             roomAlone.Process(scenario.Room.AsSpan(range));
+            mixtureAlone.Process(mixture.AsSpan(range));
+            mixtureAlone.BandDb.CopyTo(trace.MixtureDb.AsSpan(h * MaskerBands.Count));
             listener.Masker.BoostDb.CopyTo(trace.Boost.AsSpan(h * MaskerBands.Count));
             soundAlone.BandPower.CopyTo(trace.SoundPower.AsSpan(h * MaskerBands.Count));
             roomAlone.BandPower.CopyTo(trace.RoomPower.AsSpan(h * MaskerBands.Count));
@@ -125,10 +140,19 @@ public sealed class NightTrace
             var levels = Enumerable.Range(0, trace.Hops).Select(h => HopAnalyzer.ToDb(trace.RoomPower[h * MaskerBands.Count + b])).Order().ToArray();
             trace.RoomPeakDb[b] = levels[(int)(levels.Length * 0.9)];
         }
+        var oracle = new MaskerController(settings.Masker);
+        for (var h = 0; h < trace.Hops; h++)
+        {
+            var target = scenario.Events.Any(e => e.Noise.IsTarget() && h >= e.StartHop && h < e.EndHop);
+            oracle.Update(target, trace.MixtureDb.AsSpan(h * MaskerBands.Count, MaskerBands.Count), trace.RoomPeakDb, confirmed: true);
+            oracle.BoostDb.CopyTo(trace.OracleBoost.AsSpan(h * MaskerBands.Count));
+        }
         return trace;
     }
 
     public float BoostAt(int hop, int band) => hop < 0 ? 0 : Boost[hop * MaskerBands.Count + band];
+
+    public float OracleBoostAt(int hop, int band) => hop < 0 ? 0 : OracleBoost[hop * MaskerBands.Count + band];
 
     public float MaxBoostAt(int hop)
     {
