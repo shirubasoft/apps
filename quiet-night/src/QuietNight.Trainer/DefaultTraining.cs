@@ -39,16 +39,19 @@ internal static class DefaultTraining
         var sounds = new LabeledSet(SoundRecognizer.FeatureCount);
         var validationFrames = new LabeledSet(FrameFeatures.Count);
         var validationSounds = new LabeledSet(SoundRecognizer.FeatureCount);
+        var rows = new List<string>();
         for (var i = 0; i < clips.Count; i++)
         {
             var clip = clips[i];
             var sound = ReferenceAudio.Loudest(ReferenceAudio.Decode(ReferenceAudio.Mp3(audio, clip)), ReferenceAudio.TrainingLength);
             var held = clip.IsValidation;
+            var first = (held ? validationSounds : sounds).Count;
             foreach (var level in clip.Noise.IsTarget() ? TargetLevels : OtherLevels)
             {
                 var bed = beds[random.Next(beds.Count)];
                 builder.Add(bed, sound, clip.Noise, level, held ? validationFrames : frames, held ? validationSounds : sounds);
             }
+            rows.Add($"{clip.Id},{(held ? "validation" : "train")},{first},{(held ? validationSounds : sounds).Count}");
             if ((i + 1) % 25 == 0)
                 Console.WriteLine($"  {i + 1}/{clips.Count} clips, {frames.Count} hops, {sounds.Count} windows, {clock.Elapsed:mm\\:ss}");
         }
@@ -60,6 +63,7 @@ internal static class DefaultTraining
             Save(Path.Combine(dump, "frames-validation.bin"), validationFrames);
             Save(Path.Combine(dump, "sounds-train.bin"), sounds);
             Save(Path.Combine(dump, "sounds-validation.bin"), validationSounds);
+            File.WriteAllLines(Path.Combine(dump, "sound-rows.csv"), rows);
         }
         var frameHead = SoftmaxTrainer.Fit(frames, FrameOptions);
         var soundHead = SoftmaxTrainer.Fit(sounds, SoundOptions);
