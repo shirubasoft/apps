@@ -43,6 +43,6 @@ A paired comparison isolates the fine-tuning. It ran both sound models on the sa
 The bundled sound model was produced by `training/finetune.py` as of commit `fbb25bd`, against manifest fingerprint `17b5a08e32b0b172`. On the same scenarios it passes 8 of 11 cat passes with only cats masked, and 9 of 35 passes with all three noises masked. Two later candidates were not adopted:
 
 - With more development cats in training, the script passed 7 of 11 cat passes.
-- The script's later labels, ported exactly from the app's trainer, passed 6 of 11 cat passes but 13 of 35 with all three noises.
+- The script's later labels, ported from the app's trainer, passed 6 of 11 cat passes but 13 of 35 with all three noises.
 
 Cats are the user's main concern, so the cats-only result chose the candidate.

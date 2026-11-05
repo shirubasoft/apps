@@ -4,11 +4,12 @@ Examples follow the C# trainer (`ExampleBuilder`): a clip from the training spli
 level above the room measured as in `Loudness.ActiveRmsDb`, and 0.96 s windows ending anywhere from its onset, through
 its pauses, to a second after it ends are judged next to the same room. A hop holds the clip when, as in
 `ExampleBuilder`, the clip alone is louder than the room alone in some masking band where the mixture rises at least
-6 dB above the room's median, and the clip is above its own quiet floor; band levels come from the same analysis as
-`HopAnalyzer`. A window holds the clip's class when the clip holds at least 30 % of its hops and holds nothing at
-2 % or less; windows in between are left out, and harmless clips are always Other. The head mirrors the app's: a linear softmax over the embedding and
-AudioSet log-odds, each next to its difference from the room's. The validation split is only reported on. The defaults
-built the bundled model:
+6 dB above the room's median over the 4 s before the clip began, as a listener holding the room through the clip
+sees it, and the clip is above its own quiet floor; band levels come from the same analysis as `HopAnalyzer`. A
+window holds the clip's class when the clip holds at least 30 % of its hops and holds nothing at 2 % or less; windows
+in between are left out, and harmless clips are always Other. The head mirrors the app's: a linear softmax over the
+embedding and AudioSet log-odds, each next to its difference from the room's. The validation split is only reported
+on. `docs/evaluation-history.md` names the revision of this script that built the bundled model. Run it as:
 
     uv run --with-requirements training/requirements.txt python training/finetune.py \\
         reference-sounds/manifest.json <mp3 folder> models/yamnet.onnx <output folder>
@@ -28,7 +29,8 @@ ACTIVE_SHARE, QUIET_SHARE = 0.30, 0.02
 ROOM_DB = -50
 ACTIVITY_DB = 6
 PREPROCESSING = ("loudest 10 s clips, 30 s rooms; active RMS over 100 ms blocks within 20 dB; own floor min(p10+6, p90-10); "
-                 "HopAnalyzer band powers, 40 ms smoothing; band dominance with 6 dB rise over the room median")
+                 "HopAnalyzer band powers, 40 ms smoothing; band dominance with 6 dB rise over the room median of the 4 s before onset")
+WARMUP_HOPS = 400  # ExampleBuilder.Warmup: the listener hears 4 s of room before the clip begins
 # HopAnalyzer: a 400-sample symmetric Hann window ending at each hop, a 512-point FFT scaled so a band's bins add up to
 # its mean square, the seven octave masking bands, and power smoothing over 40 ms.
 HANN = 0.5 - 0.5 * np.cos(2 * np.pi * np.arange(400) / 399)
@@ -101,8 +103,15 @@ class Clip:
 class Room:
     def __init__(self, x):
         self.x = x.astype(np.float16)
-        self.median_db = np.median(to_db(band_power(x)), 0)
+        self.band_db = to_db(band_power(x))
         self.rms_db = rms_db(x)
+
+    def median_before(self, sample):
+        """The room's median band level over the 4 s of the loop before <sample>, at unit gain."""
+        hops = len(self.band_db)
+        end = (sample // HOP) % hops
+        index = (end - 1 - np.arange(min(WARMUP_HOPS, hops))) % hops
+        return np.median(self.band_db[index], 0)
 
 
 def audio_digest(manifest, audio, splits):
@@ -153,8 +162,8 @@ def load(manifest, audio, splits, cache):
     return data, inventory
 
 
-def segment(rng, room, n, gain):
-    start = rng.integers(len(room))
+def segment(rng, room, n, gain, start=None):
+    start = rng.integers(len(room)) if start is None else start
     return np.resize(np.roll(room, -start), n).astype(np.float32) * gain
 
 
@@ -173,7 +182,8 @@ def example(rng, data):
         # Window ends: a third at the onset, the rest anywhere through the clip and a second past its end.
         end = int(rng.uniform(0, 1.0) * SR) if rng.random() < 0.35 else int(rng.uniform(0.1 * SR, length + SR))
         context = CONTEXT_HOPS * HOP
-        bed = segment(rng, room.x, WINDOW + context, gain)
+        bed_start = int(rng.integers(len(room.x)))
+        bed = segment(rng, room.x, WINDOW + context, gain, bed_start)
         level = rng.uniform(*LEVELS[group])
         scale = 10 ** ((rms_db(bed[context:]) + level - clip.active_db) / 20)
         start = end - WINDOW - context
@@ -182,7 +192,9 @@ def example(rng, data):
         if hi > lo:
             placed[lo - start:hi - start] = clip.x[lo:hi].astype(np.float32) * scale
         window = (bed + placed)[context:]
-        active = stands_out(placed, bed, room.median_db + gain_db, clip.floor + 20 * np.log10(scale))[CONTEXT_HOPS:]
+        # The clip began at bed sample -start, which lies (bed_start - start) into the room's loop.
+        median_db = room.median_before(bed_start - start) + gain_db
+        active = stands_out(placed, bed, median_db, clip.floor + 20 * np.log10(scale))[CONTEXT_HOPS:]
         share = active.mean()
         if group == "other":
             label = 0
