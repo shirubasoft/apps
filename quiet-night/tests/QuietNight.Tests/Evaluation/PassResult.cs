@@ -10,7 +10,8 @@ namespace QuietNight.Tests.Evaluation;
 /// <item>every target sound that needs masking for at least half a second is recognised as a target, and all of them
 /// but one (when there are three or more) as the right category;</item>
 /// <item>the median reaction is within 50 ms;</item>
-/// <item>at least 95 % of the hops that need masking are covered at once, and 85 % through 250 ms of Bluetooth delay;</item>
+/// <item>at least 95 % of the hops that need masking are covered at once, and 85 % through 250 ms of Bluetooth delay
+/// once the first, unavoidable quarter second of each sound has passed;</item>
 /// <item>sounds that must stay audible are boosted noticeably for at most 30 % of the time after their first second, the
 /// time the sound model needs to tell them apart;</item>
 /// <item>the quiet room is boosted for at most 2 % of the time it lies under the bedtime cover.</item>
@@ -25,6 +26,7 @@ public sealed record PassResult(
     IReadOnlyList<EventScore> Others,
     double QuietBoostedShare,
     double CoveredQuietBoostedShare,
+    double NightBoostedShare,
     double HopMeanMilliseconds,
     double VerdictMedianMilliseconds)
 {
@@ -38,18 +40,25 @@ public sealed record PassResult(
     private static readonly TimeSpan SettleAfterEvent = TimeSpan.FromSeconds(13);
     private static readonly TimeSpan RoomSwellAllowance = TimeSpan.FromSeconds(5);
 
-    public double CoverageAtOnce => Share(Targets.Sum(t => t.MaskedAtOnce), Targets.Sum(t => t.NeedingHops));
+    public double CoverageAtOnce => Covered(Targets.Sum(t => t.MaskedAtOnce), Targets.Sum(t => t.NeedingHops));
 
-    public double CoverageThroughBluetooth => Share(Targets.Sum(t => t.MaskedThroughBluetooth), Targets.Sum(t => t.NeedingHops));
+    public double CoverageThroughBluetooth => Covered(Targets.Sum(t => t.MaskedThroughBluetooth), Targets.Sum(t => t.NeedingThroughBluetooth));
 
+    /// <summary>The worst-covered target sound, so one long success cannot hide a short failure.</summary>
+    public double LowestEventCoverage => Recognisable.Select(t => t.CoverageAtOnce).DefaultIfEmpty(1).Min();
+
+    /// <summary>The median reaction over target sounds that needed masking; zero when none did.</summary>
     public double MedianReactionMilliseconds
     {
         get
         {
-            var reactions = Targets.Select(t => t.ReactionMilliseconds ?? double.PositiveInfinity).Order().ToArray();
-            return reactions.Length == 0 ? double.PositiveInfinity : (reactions[(reactions.Length - 1) / 2] + reactions[reactions.Length / 2]) / 2;
+            var reactions = Targets.Select(t => t.ReactionMilliseconds).OfType<double>().Order().ToArray();
+            return reactions.Length == 0 ? 0 : (reactions[(reactions.Length - 1) / 2] + reactions[reactions.Length / 2]) / 2;
         }
     }
+
+    /// <summary>How long the masker took on average to fall back after a target sound.</summary>
+    public double MeanReleaseSeconds => Targets.Select(t => t.ReleaseSeconds).DefaultIfEmpty(0).Average();
 
     /// <summary>Target sounds that need masking long enough for the sound model to have a say.</summary>
     public IReadOnlyList<EventScore> Recognisable => [.. Targets.Where(t => t.NeedingHops >= RecognisableHops)];
@@ -62,10 +71,10 @@ public sealed record PassResult(
 
     /// <summary>Over each sound's whole length, as first drafted.</summary>
     public double OtherBoostedShare =>
-        Share(Others.Sum(o => o.BoostedShare * (o.Event.EndHop - o.Event.StartHop)), Others.Sum(o => o.Event.EndHop - o.Event.StartHop));
+        Boosted(Others.Sum(o => o.BoostedShare * (o.Event.EndHop - o.Event.StartHop)), Others.Sum(o => o.Event.EndHop - o.Event.StartHop));
 
     /// <summary>After each sound's first second.</summary>
-    public double OtherBoostedAfterFirstSecond => Share(Others.Sum(o => o.BoostedAfterFirstSecond), Others.Sum(o => o.HopsAfterFirstSecond));
+    public double OtherBoostedAfterFirstSecond => Boosted(Others.Sum(o => o.BoostedAfterFirstSecond), Others.Sum(o => o.HopsAfterFirstSecond));
 
     public IReadOnlyList<string> Failures
     {
@@ -91,6 +100,8 @@ public sealed record PassResult(
         var scores = scenario.Events.Select(e => EventScore.Of(trace, e, settings, bluetoothHops)).ToList();
         var quietHops = 0;
         var quietBoosted = 0;
+        var nightHops = 0;
+        var nightBoosted = 0;
         var coveredHops = 0;
         var coveredBoosted = 0;
         var settle = ListeningFormat.Hops(NightScenario.Settle);
@@ -104,8 +115,11 @@ public sealed record PassResult(
             for (var b = 0; b < MaskerBands.Count; b++)
                 if (HopAnalyzer.ToDb(trace.RoomPower[h * MaskerBands.Count + b]) > covered[b])
                     lastSwell = h;
-            if (h < settle || scenario.Events.Any(e => h >= e.StartHop && h < e.EndHop + after)) continue;
+            if (h < settle) continue;
             var boosted = trace.MaxBoostAt(h) > EventScore.NoticeableBoostDb;
+            nightHops++;
+            if (boosted) nightBoosted++;
+            if (scenario.Events.Any(e => h >= e.StartHop && h < e.EndHop + after)) continue;
             quietHops++;
             if (boosted) quietBoosted++;
             if (h - lastSwell <= allowance) continue;
@@ -117,8 +131,9 @@ public sealed record PassResult(
             scenario,
             [.. scores.Where(s => s.Event.Noise.IsTarget())],
             [.. scores.Where(s => !s.Event.Noise.IsTarget())],
-            Share(quietBoosted, quietHops),
-            Share(coveredBoosted, coveredHops),
+            Boosted(quietBoosted, quietHops),
+            Boosted(coveredBoosted, coveredHops),
+            Boosted(nightBoosted, nightHops),
             trace.HopMilliseconds.Average(),
             verdicts.Length == 0 ? 0 : verdicts[verdicts.Length / 2]);
     }
@@ -129,5 +144,9 @@ public sealed record PassResult(
         $"others boosted {OtherBoostedAfterFirstSecond:P0} after 1 s ({OtherBoostedShare:P0} overall), quiet boosted {CoveredQuietBoostedShare:P1} ({QuietBoostedShare:P1} overall)" +
         (Passed ? "" : $" — {string.Join("; ", Failures)}");
 
-    private static double Share(double part, double whole) => whole <= 0 ? 1 : part / whole;
+    /// <summary>A coverage share: with nothing to cover, everything is covered.</summary>
+    private static double Covered(double part, double whole) => whole <= 0 ? 1 : part / whole;
+
+    /// <summary>A boosted share: with nothing to measure, nothing was boosted.</summary>
+    private static double Boosted(double part, double whole) => whole <= 0 ? 0 : part / whole;
 }

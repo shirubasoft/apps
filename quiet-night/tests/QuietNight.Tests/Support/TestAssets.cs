@@ -15,11 +15,11 @@ public static class TestAssets
 
     public static IReadOnlyList<ReferenceSound> Manifest => Sounds.Value;
 
-    public static SoundModel CreateSoundModel() => new(YamnetBytes.Value, threads: 2);
+    public static SoundModel CreateSoundModel() => new(YamnetBytes.Value, threads: 1);
 
     public static DetectorHeads Heads() => DetectorHeads.Load(name => File.OpenRead(Model(name)));
 
-    public static (LabeledSet Frames, LabeledSet Sounds) Replay() => DetectorHeads.LoadReplay(name => File.OpenRead(Model(name)));
+    public static ReferenceExamples Reference() => DetectorHeads.LoadReference(name => File.OpenRead(Model(name)));
 
     private static string Model(string name) => Path.Combine(AppContext.BaseDirectory, "Models", name);
 }

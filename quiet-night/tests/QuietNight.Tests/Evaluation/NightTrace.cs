@@ -24,6 +24,12 @@ public sealed class NightTrace
         Masking = new NoiseClass[hops];
     }
 
+    /// <summary>
+    /// How long a sound-model verdict takes to come back: 150 ms, a conservative allowance for one mid-range phone core
+    /// running YAMNet, the hand-off between threads and scheduling.
+    /// </summary>
+    public const int VerdictDelayHops = 15;
+
     public int Hops { get; }
 
     public float[] Boost { get; }
@@ -54,11 +60,18 @@ public sealed class NightTrace
     /// Runs the app's listening path over the scenario. Each verdict is computed on the window the listener asked for
     /// and handed back <paramref name="verdictDelayHops"/> hops later, as the app's background thread would.
     /// </summary>
-    public static NightTrace Record(NightScenario scenario, DetectorHeads heads, SoundModel model, ListenerSettings settings, int verdictDelayHops = 5)
+    public static NightTrace Record(NightScenario scenario, DetectorHeads heads, SoundModel model, ListenerSettings settings, int verdictDelayHops = VerdictDelayHops)
+    {
+        var recognizer = new SoundRecognizer(model, heads.Sound, settings);
+        return Record(scenario, heads, settings, (_, window) => recognizer.Classify(window), (_, window) => recognizer.LearnRoom(window), verdictDelayHops);
+    }
+
+    /// <summary>Runs the listening path with any sound model, for example one that reuses features across runs.</summary>
+    public static NightTrace Record(NightScenario scenario, DetectorHeads heads, ListenerSettings settings,
+        Func<int, float[], SoundVerdict> classify, Action<int, float[]> learnRoom, int verdictDelayHops = VerdictDelayHops)
     {
         var trace = new NightTrace(scenario.Hops);
         var listener = new NightListener(heads.Frame, settings);
-        var recognizer = new SoundRecognizer(model, heads.Sound, settings);
         var soundAlone = new HopAnalyzer();
         var roomAlone = new HopAnalyzer();
         var mixture = scenario.Mixture();
@@ -87,14 +100,14 @@ public sealed class NightTrace
             {
                 listener.CopyWindow(window);
                 clock.Restart();
-                var verdict = recognizer.Classify(window);
+                var verdict = classify(h, window);
                 trace.VerdictMilliseconds.Add(clock.Elapsed.TotalMilliseconds);
                 pending = (h + verdictDelayHops, h, verdict);
             }
             else if (listener.WantsRoom)
             {
                 listener.CopyWindow(window);
-                recognizer.LearnRoom(window);
+                learnRoom(h, window);
                 roomDue = h + verdictDelayHops;
             }
             soundAlone.Process(scenario.Sounds.AsSpan(range));

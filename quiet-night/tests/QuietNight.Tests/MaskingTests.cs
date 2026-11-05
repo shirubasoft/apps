@@ -32,7 +32,7 @@ public sealed class MaskingTests
         var masker = new MaskerController(Settings);
         var loud = Excess(14);
         var quiet = Excess(-10);
-        masker.Update(true, loud, Room);
+        masker.Update(true, loud, Room, confirmed: true);
         Assert.All(masker.BoostDb.ToArray(), b => Assert.Equal(17, b, 1e-4f));
         var holdHops = ListeningFormat.Hops(TimeSpan.FromSeconds(Settings.HoldSeconds));
         for (var h = 0; h < holdHops - 1; h++)
@@ -43,6 +43,31 @@ public sealed class MaskingTests
         Assert.Equal(17 - Settings.ReleaseDbPerSecond, masker.LoudestBoostDb, 0.05f);
         for (var h = 0; h < 1_000; h++)
             masker.Update(true, quiet, Room);
+        Assert.Equal(0, masker.LoudestBoostDb);
+    }
+
+    [Fact]
+    public void UnconfirmedBoostsAreHeldBrieflyAndFadeQuickly()
+    {
+        var masker = new MaskerController(Settings);
+        masker.Update(true, Excess(14), Room);
+        var holdHops = ListeningFormat.Hops(TimeSpan.FromSeconds(Settings.ProvisionalHoldSeconds));
+        for (var h = 0; h < holdHops + 100; h++)
+            masker.Update(true, Excess(-10), Room);
+        Assert.Equal(17 - Settings.ProvisionalReleaseDbPerSecond, masker.LoudestBoostDb, 0.15f);
+    }
+
+    [Fact]
+    public void AConfirmedRunKeepsEachBandNearItsPeak()
+    {
+        var settings = Settings with { RunDipDb = 6 };
+        var masker = new MaskerController(settings);
+        masker.Update(true, Excess(20), Room, confirmed: true);
+        for (var h = 0; h < 2_000; h++)
+            masker.Update(true, Excess(-10), Room, confirmed: true);
+        Assert.Equal(23 - settings.RunDipDb, masker.LoudestBoostDb, 1e-4f);
+        for (var h = 0; h < 2_000; h++)
+            masker.Update(true, Excess(-10), Room, confirmed: false);
         Assert.Equal(0, masker.LoudestBoostDb);
     }
 

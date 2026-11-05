@@ -10,6 +10,12 @@ public sealed class DetectionTests
 {
     private static readonly ListenerSettings Settings = ListenerSettings.Default;
 
+    /// <summary>Half-weight windows, wider evidence thresholds and rejected runs, so each mechanism shows on its own.</summary>
+    private static readonly ListenerSettings Gradual = ListenerSettings.Default with
+    {
+        WindowWeight = 0.5f, ConfirmEvidence = 2.5f, RejectEvidence = -2.5f, RejectedRunSeconds = 4,
+    };
+
     [Theory]
     [InlineData(new[] { 0.9f, 0.05f, 0.03f, 0.02f }, "Rejected", NoiseClass.Other)]
     [InlineData(new[] { 0.6f, 0.3f, 0.05f, 0.05f }, "Unsure", NoiseClass.Cat)]
@@ -47,32 +53,45 @@ public sealed class DetectionTests
     [Fact]
     public void RejectedSoundsStayUnmaskedAndTheirNeighboursStartRejected()
     {
-        var gate = new NoiseGate(Settings);
+        var gate = new NoiseGate(Gradual);
         Hops(gate, 3, needed: true);
         Assert.True(gate.Open);
-        Assert.True(gate.Apply(new Rejected(0.03f, default)));
+        Assert.False(gate.Apply(new Rejected(0.03f, default), gate.Episode));
+        Assert.True(gate.Apply(new Rejected(0.03f, default), gate.Episode));
         Hops(gate, 200, needed: true);
         Assert.False(gate.Open);
         Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
         Hops(gate, 3, needed: true);
         Assert.False(gate.Open);
-        gate.Apply(new Unsure(NoiseClass.Cat, 0.65f, default));
+        gate.Apply(new Unsure(NoiseClass.Cat, 0.9f, default), gate.Episode);
         Hops(gate, 2, needed: true);
         Assert.True(gate.Open);
         Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
-        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(NoiseGate.RejectedRunSeconds)), needed: false);
+        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(Gradual.RejectedRunSeconds)), needed: false);
         Hops(gate, 2, needed: true);
         Assert.True(gate.Open);
     }
 
     [Fact]
-    public void EvidenceAddsUpAcrossWindowsBeforeConfirming()
+    public void VerdictsAboutAnEarlierSoundAreIgnored()
     {
         var gate = new NoiseGate(Settings);
         Hops(gate, 3, needed: true);
-        gate.Apply(new Confirmed(NoiseClass.Car, 0.8f, new ClassProbabilities(0.2f, 0.05f, 0.05f, 0.7f)));
+        var earlier = gate.Episode;
+        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
+        Hops(gate, 3, needed: true);
+        Assert.False(gate.Apply(new Rejected(0.01f, default), earlier));
+        Assert.Equal(0, gate.Evidence);
+    }
+
+    [Fact]
+    public void EvidenceAddsUpAcrossWindowsBeforeConfirming()
+    {
+        var gate = new NoiseGate(Gradual);
+        Hops(gate, 3, needed: true);
+        gate.Apply(new Confirmed(NoiseClass.Car, 0.95f, new ClassProbabilities(0.05f, 0.05f, 0.05f, 0.85f)), gate.Episode);
         Assert.False(gate.Confirming);
-        gate.Apply(new Confirmed(NoiseClass.Car, 0.8f, new ClassProbabilities(0.2f, 0.05f, 0.05f, 0.7f)));
+        gate.Apply(new Confirmed(NoiseClass.Car, 0.95f, new ClassProbabilities(0.05f, 0.05f, 0.05f, 0.85f)), gate.Episode);
         Assert.True(gate.Confirming);
         gate.Hop(0, NoiseClass.Cat, needed: true);
         Assert.Equal(NoiseClass.Car, gate.Noise);
@@ -81,9 +100,10 @@ public sealed class DetectionTests
     [Fact]
     public void AConfirmedRunMasksTheNextSoundsWithoutWaiting()
     {
-        var gate = new NoiseGate(Settings);
+        var gate = new NoiseGate(Gradual);
         Hops(gate, 3, needed: true);
-        gate.Apply(new Confirmed(NoiseClass.Motorcycle, 0.97f, new ClassProbabilities(0.03f, 0.02f, 0.9f, 0.05f)));
+        for (var window = 0; window < 2; window++)
+            gate.Apply(new Confirmed(NoiseClass.Motorcycle, 0.999f, new ClassProbabilities(0.001f, 0.02f, 0.929f, 0.05f)), gate.Episode);
         Assert.True(gate.Confirming);
         Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
         gate.Hop(0, NoiseClass.Cat, needed: true);
