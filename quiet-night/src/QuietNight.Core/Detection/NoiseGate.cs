@@ -13,7 +13,9 @@ namespace QuietNight.Core.Detection;
 /// to <see cref="ListenerSettings.RejectEvidence"/> the sound is left alone until it ends, and sounds in the next
 /// <see cref="ListenerSettings.RejectedRunSeconds"/> that sound like it, such as the next knock on a door, are rejected
 /// too. Whether a new sound sounds like the last one is decided from the shape of its rise above the room over its
-/// first <see cref="CompareHops"/> hops, so a cat after a car, or a room's swell after a knock, starts afresh.
+/// first <see cref="CompareHops"/> hops, so a cat after a car, or a room's swell after a knock, starts afresh. A rejected
+/// sound that grows <see cref="ListenerSettings.NewSoundDb"/> louder than it was when it was rejected, like a motorcycle
+/// approaching through a room's swell or a cat calling over the rain, is judged afresh as a new sound.
 /// </summary>
 public sealed class NoiseGate(ListenerSettings settings)
 {
@@ -42,6 +44,8 @@ public sealed class NoiseGate(ListenerSettings settings)
     private readonly float[] rejectedShape = new float[ListeningFormat.MelBands];
     private int shapeHops;
     private bool inherited;
+    private float episodeLoudestDb;
+    private float rejectedAtDb;
     private readonly float[] classEvidence = new float[NoiseClasses.Count];
     private long hop;
     private long episodeStart;
@@ -80,11 +84,13 @@ public sealed class NoiseGate(ListenerSettings settings)
     /// <param name="likely">The fast detector's most likely target.</param>
     /// <param name="needed">Whether the hop holds a sound louder than the bedtime masker covers.</param>
     /// <param name="rise">How far each mel band rises above the room, in any fixed unit; empty when unknown.</param>
-    public void Hop(float targetProbability, NoiseClass likely, bool needed, ReadOnlySpan<float> rise = default)
+    /// <param name="loudestDb">How far the loudest band rises above the room, in dB; NaN when unknown.</param>
+    public void Hop(float targetProbability, NoiseClass likely, bool needed, ReadOnlySpan<float> rise = default, float loudestDb = float.NaN)
     {
         JustRejected = false;
         if (needed) lastNeeded = hop;
-        if (inEpisode && hop - lastNeeded > EndAfterHops)
+        if (inEpisode && Rejecting && float.IsNegativeInfinity(rejectedAtDb)) rejectedAtDb = episodeLoudestDb;
+        if (inEpisode && (hop - lastNeeded > EndAfterHops || (needed && Rejecting && rejectedAtDb > float.NegativeInfinity && loudestDb >= rejectedAtDb + settings.NewSoundDb)))
         {
             if (evidence >= settings.ConfirmEvidence || (inherited && hop < runUntil))
             {
@@ -105,12 +111,16 @@ public sealed class NoiseGate(ListenerSettings settings)
             episodeStart = hop;
             evidence = hop < runUntil ? settings.RunPrior : 0;
             inherited = false;
+            episodeLoudestDb = float.NegativeInfinity;
+            rejectedAtDb = float.NegativeInfinity;
             shapeHops = 0;
             Array.Clear(shape);
             // Which target it is decays from sound to sound within a run, so a cat after a car is called a cat.
             for (var c = 0; c < classEvidence.Length; c++)
                 classEvidence[c] = hop < runUntil ? classEvidence[c] * ClassCarryOver : 0;
         }
+        if (inEpisode && needed && !float.IsNaN(loudestDb))
+            episodeLoudestDb = MathF.Max(episodeLoudestDb, loudestDb);
         if (inEpisode && needed && rise.Length == shape.Length)
         {
             for (var m = 0; m < shape.Length; m++)

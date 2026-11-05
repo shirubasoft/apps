@@ -140,6 +140,24 @@ public sealed class DetectionTests
     }
 
     [Fact]
+    public void ARejectedSoundThatGrowsMuchLouderIsJudgedAfresh()
+    {
+        var gate = new NoiseGate(Settings);
+        Loud(gate, 3, Low, 10);
+        gate.Apply(new Rejected(0.01f, default), gate.Episode);
+        Assert.True(gate.Rejecting);
+        var rejected = gate.Episode;
+        Loud(gate, 50, Low, 10 + Settings.NewSoundDb - 1);
+        Assert.Equal(rejected, gate.Episode);
+        Assert.False(gate.Open);
+
+        // A different sound on top of it starts a new episode, which is masked once it is clear it differs.
+        Loud(gate, NoiseGate.CompareHops + 1, High, 10 + Settings.NewSoundDb);
+        Assert.NotEqual(rejected, gate.Episode);
+        Assert.True(gate.Open);
+    }
+
+    [Fact]
     public void AConfirmedRunMasksSoundsLikeItWithoutWaiting()
     {
         var gate = new NoiseGate(Gradual);
@@ -169,6 +187,12 @@ public sealed class DetectionTests
 
     /// <summary>A sound rising in the high mel bands, like a door's squeak.</summary>
     private static readonly float[] High = [.. Enumerable.Range(0, ListeningFormat.MelBands).Select(m => m >= 24 ? (m - 23) / 8f : 0f)];
+
+    private static void Loud(NoiseGate gate, int count, float[] rise, float loudestDb)
+    {
+        for (var h = 0; h < count; h++)
+            gate.Hop(0.9f, NoiseClass.Car, needed: true, rise, loudestDb);
+    }
 
     private static void Silent(NoiseGate gate, int count, float[] rise)
     {

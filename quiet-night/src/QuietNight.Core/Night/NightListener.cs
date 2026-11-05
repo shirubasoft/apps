@@ -15,9 +15,7 @@ namespace QuietNight.Core.Night;
 public sealed class NightListener
 {
     private const int RingSamples = 16_384;
-    private const int OnsetHops = 10;
     private const int BriefHops = 50;
-    private const float OnsetDb = 10;
     private static readonly int RoomEveryHops = ListeningFormat.Hops(TimeSpan.FromSeconds(10));
     private static readonly int QuietBeforeRoomHops = ListeningFormat.Hops(TimeSpan.FromSeconds(1.2));
     private static readonly int RoomFallbackHops = ListeningFormat.Hops(TimeSpan.FromSeconds(3));
@@ -129,7 +127,7 @@ public sealed class NightListener
         frameFeatures.Compute(analyzer.MelDb, melRoom.Level, features);
         frameModel.Predict(features, probabilities);
         FrameTargetProbability = warm ? NoiseClasses.TargetProbability(probabilities) : 0;
-        Gate.Hop(FrameTargetProbability, NoiseClasses.BestTarget(probabilities), needed, features.AsSpan(0, ListeningFormat.MelBands));
+        Gate.Hop(FrameTargetProbability, NoiseClasses.BestTarget(probabilities), needed, features.AsSpan(0, ListeningFormat.MelBands), loudest);
         if (Gate.JustRejected) Masker.Drop();
         Masker.Update(Gate.Open && warm, analyzer.BandDb, bedtimeRoom.Peak, Gate.Confirming);
 
