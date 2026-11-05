@@ -49,10 +49,16 @@ public sealed class TrainPage : ContentPage
         meter.Tick += async (_, _) => await TickAsync();
     }
 
-    protected override void OnAppearing()
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
         Refresh();
+        // Heads trained on an earlier sound model no longer fit its features; the recordings stay to train again.
+        if (ModelStore.IsPersonal)
+        {
+            await ModelStore.ForgetIncompatibleAsync();
+            Refresh();
+        }
     }
 
     protected override void OnDisappearing()
@@ -147,7 +153,7 @@ public sealed class TrainPage : ContentPage
                 // Training learns every noise, including those the user has chosen not to mask tonight.
                 var trainer = new PersonalTrainer(model, NightSettings.Load().Listener with { Ignored = default });
                 var outcome = trainer.Train(audio, current, reference, reporter);
-                if (outcome.Report.Accepted) ModelStore.SavePersonal(outcome.Heads, recordings.Count);
+                if (outcome.Report.Accepted) await ModelStore.SavePersonalAsync(outcome.Heads, recordings.Count);
                 return outcome;
             });
             result.Text = Describe(report);
