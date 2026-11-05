@@ -13,12 +13,12 @@ public enum Sensitivity
 }
 
 /// <summary>The user's bedtime choices, kept in app preferences.</summary>
-public sealed record NightSettings(float Volume, float MaxBoostDb, Sensitivity Sensitivity)
+public sealed record NightSettings(float Volume, float MaxBoostDb, Sensitivity Sensitivity, IgnoredNoises Ignored)
 {
     public const float LoopLevelDb = -15;
     private const float VolumeRangeDb = 30;
 
-    public static NightSettings Default { get; } = new(0.5f, ListenerSettings.Default.Masker.MaxBoostDb, Sensitivity.Normal);
+    public static NightSettings Default { get; } = new(0.5f, ListenerSettings.Default.Masker.MaxBoostDb, Sensitivity.Normal, default);
 
     public float HeadroomDb => Sensitivity switch
     {
@@ -29,6 +29,7 @@ public sealed record NightSettings(float Volume, float MaxBoostDb, Sensitivity S
 
     public ListenerSettings Listener => ListenerSettings.Default with
     {
+        Ignored = Ignored,
         Masker = ListenerSettings.Default.Masker with { HeadroomDb = HeadroomDb, MaxBoostDb = MaxBoostDb },
     };
 
@@ -44,15 +45,26 @@ public sealed record NightSettings(float Volume, float MaxBoostDb, Sensitivity S
             levelDb[b] = volumeDb + MaskerSettings.ShapeDb[b];
     }
 
-    public static NightSettings Load() => new(
-        Preferences.Default.Get("volume", Default.Volume),
-        Preferences.Default.Get("max-boost", Default.MaxBoostDb),
-        (Sensitivity)Preferences.Default.Get("sensitivity", (int)Default.Sensitivity));
+    public static NightSettings Load()
+    {
+        var ignored = new IgnoredNoises(
+            Preferences.Default.Get("ignore-cats", false),
+            Preferences.Default.Get("ignore-motorcycles", false),
+            Preferences.Default.Get("ignore-cars", false));
+        return new(
+            Preferences.Default.Get("volume", Default.Volume),
+            Preferences.Default.Get("max-boost", Default.MaxBoostDb),
+            (Sensitivity)Preferences.Default.Get("sensitivity", (int)Default.Sensitivity),
+            ignored.All ? default : ignored);
+    }
 
     public void Save()
     {
         Preferences.Default.Set("volume", Volume);
         Preferences.Default.Set("max-boost", MaxBoostDb);
         Preferences.Default.Set("sensitivity", (int)Sensitivity);
+        Preferences.Default.Set("ignore-cats", Ignored.Cats);
+        Preferences.Default.Set("ignore-motorcycles", Ignored.Motorcycles);
+        Preferences.Default.Set("ignore-cars", Ignored.Cars);
     }
 }

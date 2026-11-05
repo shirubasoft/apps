@@ -12,7 +12,7 @@ Active noise cancellation plays an inverted copy of a sound into the ear within 
 
 1. Install `QuietNight.apk` from the latest `quiet-night-v` release on Android 11 or later.
 2. Put your earbuds in. The app refuses to start without them, because played from the speaker the masker would be heard by the microphone and chase itself.
-3. On **Night**, set the masker volume so you can no longer hear the room, choose how loud it may get for a noise (**Strongest boost**) and how readily it reacts, then tap **Start**. Allow microphone and notification access when asked, and allow the app to run all night if Android offers to restrict it. Keep the phone charging.
+3. On **Night**, choose which noises to mask: cats, motorcycles, cars, or any of them. Set the masker volume so you can no longer hear the room, choose how loud it may get for a noise (**Strongest boost**) and how readily it reacts, then tap **Start**. Allow microphone and notification access when asked, and allow the app to run all night if Android offers to restrict it. Keep the phone charging.
 4. If a noise wakes you, tap **Save the last 20 seconds** and say what it was.
 5. On **Train**, record your own cat, your street, or harmless sounds such as your fan or rain (**Not a disturbance**), then tap **Train**. Training runs on the phone in about a minute. The new detector is kept only when it recognises the held-back end of your recordings better than the current one without losing more than three points on reference sounds it never trained on. **Use the prebuilt model again** undoes it.
 

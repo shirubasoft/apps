@@ -127,7 +127,7 @@ public sealed class NightListener
         frameFeatures.Compute(analyzer.MelDb, melRoom.Level, features);
         frameModel.Predict(features, probabilities);
         FrameTargetProbability = warm ? NoiseClasses.TargetProbability(probabilities) : 0;
-        Gate.Hop(FrameTargetProbability, NoiseClasses.BestTarget(probabilities), needed, features.AsSpan(0, ListeningFormat.MelBands), loudest);
+        Gate.Hop(FrameTargetProbability, settings.Ignored.BestTarget(probabilities), needed, features.AsSpan(0, ListeningFormat.MelBands), loudest);
         if (Gate.JustRejected) Masker.Drop();
         Masker.Update(Gate.Open && warm, analyzer.BandDb, bedtimeRoom.Peak, Gate.Confirming);
 

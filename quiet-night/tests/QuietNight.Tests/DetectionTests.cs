@@ -288,6 +288,27 @@ public sealed class DetectionTests
             gate.Hop(0.9f, NoiseClass.Car, needed, rise);
     }
 
+    [Fact]
+    public void ANoiseTheUserSwitchedOffCountsAsHarmless()
+    {
+        var settings = Settings with { Ignored = new IgnoredNoises(Cars: true) };
+        Assert.True(settings.Judge([0.1f, 0.1f, 0.1f, 0.7f]) is Rejected);
+        Assert.True(settings.Judge([0.1f, 0.75f, 0.05f, 0.1f]) is Confirmed { Noise: NoiseClass.Cat });
+        Assert.Equal(NoiseClass.Motorcycle, settings.Ignored.BestTarget([0.1f, 0.1f, 0.2f, 0.6f]));
+    }
+
+    [Fact]
+    public void ASwitchedOffNoiseIsMaskedOnlyUntilTheSoundModelNamesIt()
+    {
+        var settings = Settings with { Ignored = new IgnoredNoises(Cars: true) };
+        var gate = new NoiseGate(settings);
+        Hops(gate, 3, needed: true);
+        Assert.True(gate.Open);
+        Assert.True(gate.Apply(settings.Judge([0.05f, 0.02f, 0.03f, 0.9f]), gate.Episode));
+        Hops(gate, 1, needed: true);
+        Assert.False(gate.Open);
+    }
+
     [Theory]
     [InlineData(true, 20f)]
     [InlineData(false, 0f)]
@@ -307,7 +328,7 @@ public sealed class DetectionTests
             else if (listener.Masker.LoudestBoostDb > 4) firstBoost ??= hop;
             hop++;
         }
-        if (target)
+        if (minimumBoost > 0)
         {
             Assert.NotNull(firstBoost);
             Assert.InRange((firstBoost.Value - toneHop) * ListeningFormat.HopSeconds, 0, 0.03);

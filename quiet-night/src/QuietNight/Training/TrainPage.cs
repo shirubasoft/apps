@@ -144,7 +144,8 @@ public sealed class TrainPage : ContentPage
                 var current = await ModelStore.HeadsAsync();
                 var reference = await ModelStore.ReferenceAsync();
                 using var model = new SoundModel(await ModelStore.YamnetAsync(), threads: 2);
-                var trainer = new PersonalTrainer(model, NightSettings.Load().Listener);
+                // Training learns every noise, including those the user has chosen not to mask tonight.
+                var trainer = new PersonalTrainer(model, NightSettings.Load().Listener with { Ignored = default });
                 var outcome = trainer.Train(audio, current, reference, reporter);
                 if (outcome.Report.Accepted) ModelStore.SavePersonal(outcome.Heads, recordings.Count);
                 return outcome;

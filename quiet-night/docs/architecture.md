@@ -45,6 +45,8 @@ The **sound model** is Google's YAMNet, run only while a sound needs masking. It
 
 Which target is named comes from the share each target takes of the target probability in windows that look like targets, with older windows fading. A clear new target is therefore named correctly even after a long run of another.
 
+Noises the user switches off on **Night** count as harmless in the sound model's verdicts, so once the sound model hears one, the gate rejects it and its boost falls away. The fast detector still reacts to every target at onset. Within its first hops it cannot tell a cat from an engine, so a switched-off noise may get a provisional boost until the first verdict.
+
 ## Masking
 
 Each of the seven octave bands rises by how far it exceeds the bedtime cover, plus a 3 dB margin, up to the user's strongest boost. A sustained rise, like an approaching engine, is extrapolated a quarter second ahead so the masker is already loud enough when the earbuds play it.

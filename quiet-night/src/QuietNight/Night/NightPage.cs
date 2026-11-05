@@ -43,6 +43,8 @@ public sealed class NightPage : ContentPage
         boost.ValueChanged += (_, e) => Change(settings with { MaxBoostDb = (float)Math.Round(e.NewValue) });
         var sensitivity = new ChoiceRow(Sensitivities, (int)settings.Sensitivity);
         sensitivity.Changed += i => Change(settings with { Sensitivity = (Sensitivity)i });
+        var noises = new ToggleRow(["Cats", "Motorcycles", "Cars"], [.. NoiseClasses.Targets.Select(n => !settings.Ignored.Contains(n))]);
+        noises.Changed += (i, on) => Change(settings with { Ignored = settings.Ignored.With(NoiseClasses.Targets[i], !on) });
 
         var allow = Theme.Secondary("Allow running all night");
         allow.Clicked += (_, _) => AskForBatteryExemption();
@@ -53,10 +55,12 @@ public sealed class NightPage : ContentPage
 
         Content = Theme.Scroll(
             Theme.Title("Quiet Night"),
-            Theme.Body("Masks cats, motorcycles and cars while you sleep. A soft noise plays in your earbuds and rises only when a disturbing sound needs covering."),
+            Theme.Body("Masks cats, motorcycles and cars while you sleep, or only the ones you choose. A soft noise plays in your earbuds and rises only when a disturbing sound needs covering."),
             new VerticalStackLayout { Spacing = 10, Margin = new Thickness(0, 12), Children = { toggle, toggleCaption } },
             Theme.Card(state, detail, problem, maskedList, saveRecent),
             Theme.Card(
+                Theme.Heading("Mask"), noises,
+                Theme.Body("Switch off any you do not need covered; those sounds are then left alone like any other harmless sound. Applies from the next start."),
                 Row(Theme.Heading("Masker volume"), volumeValue), volume,
                 Row(Theme.Heading("Strongest boost"), boostValue), boost,
                 Theme.Body("How far the masker may rise above its bedtime level for a loud noise."),

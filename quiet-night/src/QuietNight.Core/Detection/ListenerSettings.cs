@@ -29,6 +29,7 @@ namespace QuietNight.Core.Detection;
 /// that evidence counts in proportion.
 /// </param>
 /// <param name="NewSoundDb">How much louder than when it was rejected a sound must grow to be judged afresh.</param>
+/// <param name="Ignored">Target noises the user has chosen not to mask; see <see cref="IgnoredNoises"/>.</param>
 /// <param name="OtherPrior">
 /// Log-odds added to <see cref="NoiseClass.Other"/> before a verdict. The head is trained with every class equally
 /// common, but at night most sounds that stand out are not targets.
@@ -50,12 +51,14 @@ public sealed record ListenerSettings(
     float SameSoundSimilarity = 0.6f,
     float OtherPrior = 0,
     float FullWeightFill = 0.5f,
-    float NewSoundDb = 10)
+    float NewSoundDb = 10,
+    IgnoredNoises Ignored = default)
 {
     public static ListenerSettings Default { get; } = new(new MaskerSettings());
 
     public SoundVerdict Judge(Span<float> probabilities)
     {
+        Ignored.Fold(probabilities);
         if (OtherPrior != 0)
         {
             var other = probabilities[(int)NoiseClass.Other] * MathF.Exp(OtherPrior);
@@ -65,7 +68,7 @@ public sealed record ListenerSettings(
                 probabilities[c] /= total;
         }
         var target = NoiseClasses.TargetProbability(probabilities);
-        var likely = NoiseClasses.BestTarget(probabilities);
+        var likely = Ignored.BestTarget(probabilities);
         var classes = ClassProbabilities.From(probabilities);
         if (target >= ConfirmProbability) return new Confirmed(likely, target, classes);
         if (target < RejectProbability) return new Rejected(target, classes);
