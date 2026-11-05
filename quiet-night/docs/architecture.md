@@ -10,7 +10,7 @@ flowchart LR
     room --> fast
     fast --> gate["NoiseGate<br/>episodes, evidence, runs"]
     hop --> ring["Last 0.96 s"]
-    ring -->|"every 0.24 s while<br/>a sound needs masking"| yamnet["YAMNet (prebuilt)<br/>embedding + AudioSet log-odds"]
+    ring -->|"every 0.24 s while<br/>a sound needs masking"| yamnet["YAMNet, fine-tuned<br/>embedding + AudioSet log-odds"]
     yamnet --> head["Sound head<br/>window and its difference from the room"]
     head -->|"verdicts"| gate
     gate --> masker["MaskerController<br/>per-band boost, hold, release"]
@@ -34,7 +34,7 @@ While the room is quiet, the sound model also takes a fresh look at it every 10 
 
 The **fast detector** judges each hop from how far each mel band rises above the room, how quickly it rose over the last 40 ms, and the spectral shape. When a sound needs masking and two hops in a row look like a target, the gate opens provisionally. The masker therefore reacts within 20–30 ms of the sound reaching the microphone.
 
-The **sound model** is Google's YAMNet, run only while a sound needs masking. Its 1024-value embedding and the log-odds of its own AudioSet classes, next to how both differ from the quiet room's, go through a trained softmax head. The first window is taken once the sound fills a quarter of the 0.96 s window; until then the window holds mostly the room before the sound.
+The **sound model** is Google's YAMNet with its later layers fine-tuned for this task, run only while a sound needs masking. Its 1024-value embedding and the log-odds of its own AudioSet classes, next to how both differ from the quiet room's, go through a trained softmax head. The first window is taken once the sound fills a quarter of the 0.96 s window; until then the window holds mostly the room before the sound.
 
 ## The gate
 
@@ -57,6 +57,8 @@ Each of the seven octave bands rises by how far it exceeds the bedtime cover, pl
 Each band is a looping, seamless noise layer on its own `AudioTrack`. A boost changes the track volume, which Android's mixer applies on its next cycle, so buffered audio never delays a boost.
 
 ## Training
+
+The sound model is fine-tuned offline by `training/finetune.py`. It starts from the prebuilt YAMNet and trains its later convolution layers, together with a head like the app's, on 0.96 s windows of the training sounds mixed into training rooms at night levels. Half the windows are only partly filled by the sound, as at an onset, and each is judged next to another window of the same room. Fine-tuning lets the embedding separate cats from fan hums and voices that the prebuilt model places close together.
 
 Both heads are multinomial logistic regressions, trained with AdamW by the same C# code in three places:
 

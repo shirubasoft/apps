@@ -1,7 +1,7 @@
 artifacts/
 .aspire/
-# Downloaded by scripts/fetch-models.sh with a pinned checksum.
-src/QuietNight/Resources/Raw/yamnet.onnx
+# The prebuilt YAMNet that training/finetune.py starts from, downloaded by scripts/fetch-models.sh.
+models/
 
 # Attach UI recordings to pull requests.
 *.mp4

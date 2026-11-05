@@ -3,7 +3,7 @@ using QuietNight.Trainer;
 
 // Developer tool: prepares the committed test sounds and trains the heads bundled with the app.
 //   prepare <split> <manifest.json> <mp3 directory> <output directory>
-//   train <manifest.json> <mp3 directory> <yamnet.onnx> <output directory> [threads]
+//   train <manifest.json> <mp3 directory> <sound-model.onnx> <output directory> [threads]
 if (args.Length < 4)
 {
     Console.Error.WriteLine("Usage: prepare <split> <manifest> <audio> <output> | train <manifest> <audio> <model> <output> [threads]");

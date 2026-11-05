@@ -18,6 +18,6 @@
     <None Include="ReferenceSounds/**/*.opus" CopyToOutputDirectory="PreserveNewest" LinkBase="ReferenceSounds" />
     <None Include="../../reference-sounds/manifest.json" Link="ReferenceSounds/manifest.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/QuietNight/Resources/Raw/*.bin" LinkBase="Models" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../src/QuietNight/Resources/Raw/yamnet.onnx" Link="Models/yamnet.onnx" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../src/QuietNight/Resources/Raw/yamnet.onnx')" />
+    <None Include="../../src/QuietNight/Resources/Raw/sound-model.onnx" Link="Models/sound-model.onnx" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

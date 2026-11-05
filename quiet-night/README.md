@@ -26,7 +26,7 @@ YAMNet hears a steady fan hum, and some appliances, much like an idling engine. 
 
 [docs/architecture.md](docs/architecture.md) describes the listening path, the two detection stages, the masker and training.
 
-- **Prebuilt model:** Google's [YAMNet](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet) (AudioSet, Apache-2.0), in the [ONNX conversion by Audio Magic](https://huggingface.co/audiomagic/yamnet-onnx), run with ONNX Runtime. `scripts/fetch-models.sh` downloads it at a pinned revision and checksum. Each release attaches it with the APK.
+- **Sound model:** Google's prebuilt [YAMNet](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet) (AudioSet, Apache-2.0), in the [ONNX conversion by Audio Magic](https://huggingface.co/audiomagic/yamnet-onnx), with its later layers fine-tuned by `training/finetune.py` on the training sounds mixed into night rooms. The result, `src/QuietNight/Resources/Raw/sound-model.onnx`, runs with ONNX Runtime and is attached to each release.
 - **Trained heads:** a fast per-10 ms detector and a head on YAMNet's features, trained by `src/QuietNight.Trainer` on the reference sounds and shipped in `src/QuietNight/Resources/Raw`. Each release attaches them too.
 - **Reference sounds:** CC0 and CC-BY clips from [FSD50K](https://zenodo.org/records/4060432), previewed on Freesound. A cat counts as a target when it meows, yowls, hisses or growls; purring is quiet and counts as harmless. `reference-sounds/manifest.json` lists every clip with its licence, uploader, page and checksum, and its split: training, validation (for reporting and tuning), or test (only for the final evaluation). The held-out test audio is committed under `tests/QuietNight.Tests/ReferenceSounds` as 16 kHz Ogg Opus.
 
@@ -46,7 +46,7 @@ dotnet workload install maui-android --skip-manifest-update
 ./build.sh
 ```
 
-The build downloads the YAMNet model, runs the tests and the evaluation, builds the AppHost and publishes `artifacts/QuietNight.apk` with `arm64-v8a` and `x86_64` libraries. The APK is signed with the developer key .NET Android generates; upgrading between builds from different machines needs an uninstall first.
+The build runs the tests and the evaluation, builds the AppHost and publishes `artifacts/QuietNight.apk` with `arm64-v8a` and `x86_64` libraries. The APK is signed with the developer key .NET Android generates; upgrading between builds from different machines needs an uninstall first.
 
 With an emulator or USB-debugging phone connected:
 
@@ -61,6 +61,12 @@ aspire start --non-interactive
 aspire resource quiet-night-android start --non-interactive
 ```
 
-To rebuild the heads, download the training and validation clips listed in the manifest into one folder as `<id>.mp3` and run `dotnet run --project src/QuietNight.Trainer -- train reference-sounds/manifest.json <folder> src/QuietNight/Resources/Raw/yamnet.onnx src/QuietNight/Resources/Raw`. `prepare <split>` encodes a split's clips as Opus.
+To rebuild the models, download the training and validation clips listed in the manifest into one folder as `<id>.mp3`:
+
+1. `scripts/fetch-models.sh` downloads the prebuilt YAMNet into `models/` at a pinned revision and checksum.
+2. `training/finetune.py`, on a CUDA GPU, fine-tunes it into the sound model; its docstring gives the command.
+3. `dotnet run --project src/QuietNight.Trainer -- train reference-sounds/manifest.json <folder> src/QuietNight/Resources/Raw/sound-model.onnx src/QuietNight/Resources/Raw` trains the heads on it.
+
+`prepare <split>` encodes a split's clips as Opus.
 
 App-specific CI builds and tests on every change; releases publish the APK, the models and the evaluation report from successful `main` builds under `quiet-night-v` tags.

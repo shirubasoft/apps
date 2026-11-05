@@ -42,7 +42,7 @@ public static class ModelStore
         await Gate.WaitAsync();
         try
         {
-            return yamnet ??= await ReadAssetAsync("yamnet.onnx");
+            return yamnet ??= await ReadAssetAsync("sound-model.onnx");
         }
         finally
         {

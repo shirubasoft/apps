@@ -187,7 +187,7 @@ public sealed class TrainPage : ContentPage
         reset.IsEnabled = !training;
         modelInfo.Text = ModelStore.PersonalInfo is { } info
             ? $"Using your detector, trained on {info.Recordings} recording{(info.Recordings == 1 ? "" : "s")} on {info.Trained.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}. It starts with the next night."
-            : "Using the prebuilt detector: Google's YAMNet sound model with heads trained on reference cats, motorcycles, cars and everyday sounds from Freesound.";
+            : "Using the prebuilt detector: Google's YAMNet sound model, fine-tuned with heads trained on reference cats, motorcycles, cars and everyday sounds from Freesound.";
     }
 
     private Grid Row(Recording recording)

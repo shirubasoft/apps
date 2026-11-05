@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
-./scripts/fetch-models.sh
 rm -rf artifacts/test-results artifacts/evaluation
 QUIET_NIGHT_REPORT_DIR="$PWD/artifacts/evaluation" \
   dotnet test tests/QuietNight.Tests/QuietNight.Tests.csproj --configuration Release \
