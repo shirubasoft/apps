@@ -18,6 +18,10 @@ Active noise cancellation plays an inverted copy of a sound into the ear within 
 
 The night stops by itself if the earbuds disconnect or Android would route the masker to the speaker. A phone call or another app taking audio focus mutes the masker until it is back.
 
+## Known limitations
+
+YAMNet hears a steady fan hum, and some appliances, much like an idling engine. In a room with a fan running the masker may treat the fan as traffic and rise with sounds it should leave alone. Recording the fan on **Train** as **Not a disturbance** gives the detector examples of it to learn from.
+
 ## How it works
 
 [docs/architecture.md](docs/architecture.md) describes the listening path, the two detection stages, the masker and training.
@@ -28,7 +32,7 @@ The night stops by itself if the earbuds disconnect or Android would route the m
 
 ## Evaluation
 
-`./test.sh` runs the unit tests and the five-pass evaluation and writes `artifacts/evaluation/five-pass-evaluation.md`. Each pass mixes four held-out cat, motorcycle or car recordings and two held-out sounds that must stay audible (speech, alarms, phones, doors, rain and the like) into a held-out night room with phone-microphone self-noise, at realistic levels above the room, and runs the app's exact listening path with the bundled models. The criteria are documented in `tests/QuietNight.Tests/Evaluation/PassResult.cs`.
+`./test.sh` runs the unit tests and the five-pass evaluation and writes `artifacts/evaluation/five-pass-evaluation.md`; each release attaches that report. Each pass mixes four held-out cat, motorcycle or car recordings and two held-out sounds that must stay audible (speech, alarms, phones, doors, rain and the like) into a held-out night room with phone-microphone self-noise, and runs the app's exact listening path with the bundled models. Cats and cars play 10–25 dB above the room, motorcycles 15–30 dB, and the other sounds 8–22 dB. The report lists every pass and whether it meets the criteria documented in `tests/QuietNight.Tests/Evaluation/PassResult.cs`; the goal is five passes per category.
 
 Coverage in the report is controller coverage: it assumes the bedtime masker, at the volume the user chose, just covers the room's usual peaks. What reaches the ear also depends on the earbuds' seal and volume, which the app cannot measure.
 
