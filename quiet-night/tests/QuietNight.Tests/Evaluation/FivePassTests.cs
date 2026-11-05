@@ -65,12 +65,11 @@ public sealed class EvaluationReport : IDisposable
 }
 
 /// <summary>
-/// Five independent passes per category over held-out reference sounds, or as many as the test split allows. Each pass mixes four cat, motorcycle or car
-/// recordings and two sounds that must not trigger masking into a held-out room, runs the app's exact listening path
-/// with the bundled YAMNet model and heads, and judges it by the criteria in <see cref="PassResult"/>, for each choice of
-/// noises to mask. The verdicts are
-/// the evaluation's measured result, published in its report with every release; the test checks that every pass was
-/// measured.
+/// Five independent passes per category over held-out reference sounds, or as many as the test split allows. Each pass
+/// mixes four cat, motorcycle or car recordings and two sounds that must not trigger masking into a held-out room, runs
+/// the app's exact listening path with the bundled sound model and heads, and judges it by the criteria in
+/// <see cref="PassResult"/>, for each choice of noises to mask. The verdicts are the evaluation's measured result,
+/// published in its report with every release; the test checks that every pass was measured.
 /// </summary>
 public sealed class FivePassTests(EvaluationReport report, ITestOutputHelper output) : IClassFixture<EvaluationReport>
 {
