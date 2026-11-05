@@ -1,0 +1,50 @@
+{
+  "branches": [
+    "main"
+  ],
+  "tagFormat": "quiet-night-v${version}",
+  "plugins": [
+    [
+      "../.github/release/application-semantic-release.mjs",
+      {
+        "preset": "conventionalcommits",
+        "scope": "quiet-night"
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "verifyReleaseCmd": "if [ -n \"$NEXT_RELEASE_VERSION_FILE\" ]; then printf '%s\\n' '${nextRelease.version}' > \"$NEXT_RELEASE_VERSION_FILE\"; else bash ../.github/release/verify-application-assets.sh '${nextRelease.version}' artifacts/release-version.txt artifacts/QuietNight.apk; fi"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "artifacts/QuietNight.apk",
+            "label": "Quiet Night Android APK"
+          },
+          {
+            "path": "artifacts/models/yamnet.onnx",
+            "label": "Prebuilt YAMNet sound model (Google, Apache-2.0, ONNX)"
+          },
+          {
+            "path": "artifacts/models/frame-head.bin",
+            "label": "Fast detector head trained on the reference sounds"
+          },
+          {
+            "path": "artifacts/models/sound-head.bin",
+            "label": "Sound model head trained on the reference sounds"
+          },
+          {
+            "path": "artifacts/evaluation/five-pass-evaluation.md",
+            "label": "Five-pass masking evaluation"
+          }
+        ],
+        "successComment": false,
+        "failComment": false
+      }
+    ]
+  ]
+}

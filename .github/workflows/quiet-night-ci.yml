@@ -1,0 +1,117 @@
+name: Quiet Night CI
+
+on:
+  push:
+    branches: [main]
+    paths: [quiet-night/**, .github/workflows/quiet-night-ci.yml, .github/workflows/quiet-night-release.yml]
+  pull_request:
+    paths: [quiet-night/**, .github/workflows/quiet-night-ci.yml, .github/workflows/quiet-night-release.yml]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  release-version:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/semantic-release-version.yml
+    with:
+      application-directory: quiet-night
+      tag-prefix: quiet-night-v
+    secrets: inherit
+
+  build-test-apk:
+    needs: release-version
+    if: always() && (needs.release-version.result == 'success' || needs.release-version.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: quiet-night
+    env:
+      CI: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: quiet-night/global.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Install Android workload
+        run: dotnet workload install maui-android --skip-manifest-update
+      - name: Build, test, and package
+        env:
+          RELEASE_VERSION: ${{ needs.release-version.outputs.version }}
+        run: |
+          if [[ -n "$RELEASE_VERSION" ]]; then
+            ./build.sh --release-version "$RELEASE_VERSION"
+          else
+            ./build.sh
+          fi
+      - name: Detect covered input changes
+        id: covered
+        if: github.event_name == 'pull_request'
+        env:
+          TARGET_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git cat-file -e "$TARGET_SHA:quiet-night/tests/QuietNight.Tests/QuietNight.Tests.csproj" 2>/dev/null &&
+            ! git diff --quiet "$TARGET_SHA"...HEAD -- src/QuietNight.Core tests Directory.Build.props Directory.Packages.props global.json; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Fetch base coverage
+        id: base-coverage
+        if: steps.covered.outputs.changed == 'true'
+        continue-on-error: true
+        env:
+          CRAP_SCORE_API_URL: ${{ github.api_url }}
+          CRAP_SCORE_GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          dotnet run --project ../tools/CrapScore/CrapScore.csproj -c Release --no-build --
+          download-artifact ${{ github.repository }} ${{ github.event.pull_request.base.sha }}
+          ../artifacts/quiet-night-base-coverage quiet-night-crap-score
+      - uses: actions/checkout@v7
+        if: steps.covered.outputs.changed == 'true' && steps.base-coverage.outcome == 'failure'
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: artifacts/quiet-night-base
+      - uses: actions/setup-dotnet@v5
+        if: steps.covered.outputs.changed == 'true' && steps.base-coverage.outcome == 'failure'
+        with:
+          global-json-file: artifacts/quiet-night-base/quiet-night/global.json
+      - name: Measure base coverage
+        if: steps.covered.outputs.changed == 'true' && steps.base-coverage.outcome == 'failure'
+        working-directory: artifacts/quiet-night-base/quiet-night
+        run: >-
+          dotnet test tests/QuietNight.Tests/QuietNight.Tests.csproj -c Release
+          --collect:"XPlat Code Coverage"
+          --results-directory ${{ github.workspace }}/artifacts/quiet-night-base-coverage
+      - name: Check CRAP reduction
+        if: steps.covered.outputs.changed == 'true'
+        run: >-
+          dotnet run --project ../tools/CrapScore/CrapScore.csproj -c Release --no-build --
+          artifacts/test-results --base-reports ../artifacts/quiet-night-base-coverage --target 5
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: quiet-night-build
+          path: |
+            quiet-night/artifacts/QuietNight.apk
+            quiet-night/artifacts/models/
+            quiet-night/artifacts/evaluation/five-pass-evaluation.md
+            quiet-night/artifacts/coverage/crap-score.md
+            quiet-night/artifacts/release-version.txt
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: quiet-night-crap-score-${{ github.event.pull_request.head.sha || github.sha }}
+          path: quiet-night/artifacts/test-results/**/coverage.cobertura.xml
+          if-no-files-found: error
