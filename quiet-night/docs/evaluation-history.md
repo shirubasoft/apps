@@ -33,4 +33,9 @@ Development since the freeze used the validation split only. Validation clips ar
 - **Sound model:** YAMNet's later layers were fine-tuned (`training/finetune.py`), and its heads retrained.
 - **Harmless prior:** set to 0.5.
 
-With only cats masked, 7 of 11 validation cat passes met the criteria, against 5 of 11 with the prebuilt YAMNet. Both figures are on the vocal-cat validation split, but with different heads and priors, so they are not a controlled comparison.
+A paired comparison isolates the fine-tuning. It ran both sound models on the same validation scenarios, with heads trained by the same procedure and identical settings: a harmless prior of 0.5, a bedtime cover that ignores hops louder than it covers, and confirmed sounds that their pauses cannot argue out.
+
+| Noises masked | Prebuilt YAMNet | Fine-tuned YAMNet |
+| --- | --- | --- |
+| Only cats, cat passes | 3 of 11 | 8 of 11 |
+| All three, every pass | 2 of 35 | 11 of 35 |
