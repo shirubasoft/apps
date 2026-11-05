@@ -9,7 +9,7 @@ from finetune import Detector
 from yamnet_torch import YamnetExport, WINDOW
 onnx_path, state, out = sys.argv[1:4]
 model = Detector(onnx_path)
-model.load_state_dict(torch.load(state, map_location="cpu"), strict=False)
+model.load_state_dict(torch.load(state, map_location="cpu"))
 export = YamnetExport(model.yamnet.eval())
 torch.onnx.export(export, torch.zeros(WINDOW), out, input_names=["waveform"], output_names=["output_0", "output_1", "output_2"], opset_version=17, dynamo=False)
 session = ort.InferenceSession(out)
@@ -22,4 +22,7 @@ for _ in range(5):
         got = export(torch.from_numpy(x))
     for i in range(3):
         worst[i] = max(worst[i], float(np.abs(ref[i] - got[i].numpy()).max()))
+assert all(np.isfinite(ref[i]).all() for i in range(3)), "the exported model produced non-finite outputs"
+assert ref[0].shape == (1, 521) and ref[1].shape == (1, 1024) and ref[2].shape == (96, 64), "unexpected output shapes"
+assert max(worst) < 1e-4, f"ONNX and PyTorch disagree by {max(worst)}"
 print("exported", out, os.path.getsize(out), "bytes; max abs difference ONNX vs PyTorch", worst)
