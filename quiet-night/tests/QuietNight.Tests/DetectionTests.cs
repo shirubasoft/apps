@@ -23,7 +23,7 @@ public sealed class DetectionTests
     [InlineData(new[] { 0.2f, 0.1f, 0.2f, 0.5f }, "Confirmed", NoiseClass.Car)]
     public void VerdictsFollowTheTargetProbability(float[] probabilities, string kind, NoiseClass noise)
     {
-        var verdict = Settings.Judge(probabilities);
+        var verdict = (Settings with { OtherPrior = 0 }).Judge(probabilities);
         var (actualKind, actualNoise) = verdict switch
         {
             Confirmed c => ("Confirmed", c.Noise),
@@ -33,6 +33,16 @@ public sealed class DetectionTests
         };
         Assert.Equal((kind, noise), (actualKind, actualNoise));
         Assert.Equal(1 - probabilities[0], verdict.TargetProbability, 1e-5f);
+    }
+
+    [Fact]
+    public void TheHarmlessPriorTiltsAWindowTowardsHarmless()
+    {
+        var neutral = (Settings with { OtherPrior = 0 }).Judge([0.4f, 0.5f, 0.05f, 0.05f]);
+        var tilted = (Settings with { OtherPrior = 0.5f }).Judge([0.4f, 0.5f, 0.05f, 0.05f]);
+        var other = 0.4f * MathF.Exp(0.5f);
+        Assert.Equal(0.6f, neutral.TargetProbability, 1e-5f);
+        Assert.Equal(0.6f / (other + 0.6f), tilted.TargetProbability, 1e-5f);
     }
 
     [Fact]

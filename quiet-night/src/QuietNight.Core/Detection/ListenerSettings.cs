@@ -49,7 +49,7 @@ public sealed record ListenerSettings(
     float RunPrior = 1f,
     float RejectedRunSeconds = 4,
     float SameSoundSimilarity = 0.6f,
-    float OtherPrior = 0,
+    float OtherPrior = 0.5f,
     float FullWeightFill = 0.5f,
     float NewSoundDb = 10,
     IgnoredNoises Ignored = default)
