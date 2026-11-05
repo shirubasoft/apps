@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/QuietNight.AppHost/QuietNight.AppHost.csproj" />
+    <Project Path="src/QuietNight.Core/QuietNight.Core.csproj" />
+    <Project Path="src/QuietNight.Trainer/QuietNight.Trainer.csproj" />
+    <Project Path="src/QuietNight/QuietNight.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/QuietNight.Tests/QuietNight.Tests.csproj" />
+  </Folder>
+</Solution>
