@@ -21,7 +21,7 @@ namespace QuietNight.Core.Detection;
 /// How much each window's log-odds count. Windows of 0.96 s every 0.24 s overlap by three quarters, so their verdicts
 /// are far from independent.
 /// </param>
-/// <param name="RunPrior">The head start a sound gets when it follows a confirmed run.</param>
+/// <param name="RunPrior">The head start a sound gets when it sounds like the confirmed run it follows.</param>
 /// <param name="RejectedRunSeconds">How long after a rejected sound new sounds that sound like it are rejected too, like the next knock on a door.</param>
 /// <param name="SameSoundSimilarity">How alike, by the cosine of their rise above the room, two sounds must be to belong to one run.</param>
 /// <param name="FullWeightFill">

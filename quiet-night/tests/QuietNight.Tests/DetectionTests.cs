@@ -182,6 +182,66 @@ public sealed class DetectionTests
         Assert.False(gate.Open);
     }
 
+    [Fact]
+    public void ASoundOfARunThatTheSoundModelRulesOutEndsTheRun()
+    {
+        var gate = new NoiseGate(Settings);
+        ConfirmLow(gate);
+        Silent(gate, NoiseGate.CompareHops, Low);
+        Assert.True(gate.Confirming);
+        Assert.True(gate.Apply(new Rejected(0.01f, default), gate.Episode));
+        Assert.False(gate.Confirming);
+        Silent(gate, 1, Low);
+        Assert.False(gate.Open);
+        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
+        Assert.False(gate.Confirming);
+
+        // Its next repeat is rejected, not masked as part of the run.
+        Hops(gate, NoiseGate.CompareHops + 2, needed: true, Low);
+        Assert.True(gate.Rejecting);
+        Assert.False(gate.Open);
+    }
+
+    [Fact]
+    public void ADifferentSoundInARunGetsNoHeadStart()
+    {
+        var gate = new NoiseGate(Settings);
+        ConfirmLow(gate);
+        Hops(gate, NoiseGate.CompareHops + 1, needed: true, High);
+        Assert.Equal(0, gate.Evidence);
+        gate.Apply(new Confirmed(NoiseClass.Cat, 0.75f, new ClassProbabilities(0.25f, 0.7f, 0.03f, 0.02f)), gate.Episode);
+        Assert.False(gate.Confirming);
+        gate.Hop(0.9f, NoiseClass.Cat, needed: true, High);
+        Assert.Equal(NoiseClass.Cat, gate.Noise);
+    }
+
+    [Fact]
+    public void RunsRememberTheShapeOfASoundsOnset()
+    {
+        var gate = new NoiseGate(Settings);
+        Hops(gate, NoiseGate.CompareHops, needed: true, Low);
+        Hops(gate, 200, needed: true, High);
+        gate.Apply(new Confirmed(NoiseClass.Motorcycle, 0.999f, new ClassProbabilities(0.001f, 0.02f, 0.929f, 0.05f)), gate.Episode);
+        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
+
+        // A sound starting like the run's sustain does not continue the run; one starting like its onset does.
+        Silent(gate, NoiseGate.CompareHops, High);
+        Assert.False(gate.Open);
+        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
+        Silent(gate, NoiseGate.CompareHops, Low);
+        Assert.True(gate.Open);
+        Assert.Equal(NoiseClass.Motorcycle, gate.Noise);
+    }
+
+    /// <summary>Confirms a low sound as a motorcycle and lets it end, leaving a confirmed run.</summary>
+    private static void ConfirmLow(NoiseGate gate)
+    {
+        Hops(gate, NoiseGate.CompareHops, needed: true, Low);
+        gate.Apply(new Confirmed(NoiseClass.Motorcycle, 0.999f, new ClassProbabilities(0.001f, 0.02f, 0.929f, 0.05f)), gate.Episode);
+        Assert.True(gate.Confirming);
+        Hops(gate, ListeningFormat.Hops(TimeSpan.FromSeconds(1.1)), needed: false);
+    }
+
     /// <summary>A sound rising in the low mel bands, like an engine.</summary>
     private static readonly float[] Low = [.. Enumerable.Range(0, ListeningFormat.MelBands).Select(m => m < 8 ? 1f - m / 8f : 0f)];
 

@@ -39,9 +39,12 @@ public sealed class NoiseGate(ListenerSettings settings)
     private readonly int runHops = ListeningFormat.Hops(TimeSpan.FromSeconds(settings.ConfirmedSeconds));
     private readonly int rejectedRunHops = ListeningFormat.Hops(TimeSpan.FromSeconds(settings.RejectedRunSeconds));
     private long rejectedRunUntil = -1;
+    private long confirmedAt = -1;
+    private long rejectedAt = -1;
     private readonly float[] shape = new float[ListeningFormat.MelBands];
     private readonly float[] confirmedShape = new float[ListeningFormat.MelBands];
     private readonly float[] rejectedShape = new float[ListeningFormat.MelBands];
+    private readonly float[] runClassEvidence = new float[NoiseClasses.Count];
     private int shapeHops;
     private bool inherited;
     private float episodeLoudestDb;
@@ -63,7 +66,7 @@ public sealed class NoiseGate(ListenerSettings settings)
     /// <summary>
     /// True while the current sound is a confirmed target or continues a confirmed run, and between the sounds of a run.
     /// </summary>
-    public bool Confirming => inEpisode ? evidence >= settings.ConfirmEvidence || (inherited && hop < runUntil) : hop < runUntil;
+    public bool Confirming => inEpisode ? !Rejecting && (evidence >= settings.ConfirmEvidence || (inherited && hop < runUntil)) : hop < runUntil;
 
     /// <summary>True for the hop in which the gate ruled the current sound out without a verdict, because it repeats a rejected one.</summary>
     public bool JustRejected { get; private set; }
@@ -91,37 +94,25 @@ public sealed class NoiseGate(ListenerSettings settings)
         if (needed) lastNeeded = hop;
         if (inEpisode && Rejecting && float.IsNegativeInfinity(rejectedAtDb)) rejectedAtDb = episodeLoudestDb;
         if (inEpisode && (hop - lastNeeded > EndAfterHops || (needed && Rejecting && rejectedAtDb > float.NegativeInfinity && loudestDb >= rejectedAtDb + settings.NewSoundDb)))
-        {
-            if (evidence >= settings.ConfirmEvidence || (inherited && hop < runUntil))
-            {
-                runUntil = hop + runHops;
-                if (evidence >= settings.ConfirmEvidence) shape.CopyTo(confirmedShape);
-            }
-            if (evidence <= settings.RejectEvidence)
-            {
-                rejectedRunUntil = hop + rejectedRunHops;
-                shape.CopyTo(rejectedShape);
-            }
-            inEpisode = false;
-        }
+            EndEpisode();
         if (needed && !inEpisode)
         {
             inEpisode = true;
             Episode++;
             episodeStart = hop;
-            evidence = hop < runUntil ? settings.RunPrior : 0;
+            // A new sound starts with no evidence and no name; it takes on the run's only once it sounds like it.
+            evidence = 0;
             inherited = false;
             episodeLoudestDb = float.NegativeInfinity;
             rejectedAtDb = float.NegativeInfinity;
             shapeHops = 0;
             Array.Clear(shape);
-            // Which target it is decays from sound to sound within a run, so a cat after a car is called a cat.
-            for (var c = 0; c < classEvidence.Length; c++)
-                classEvidence[c] = hop < runUntil ? classEvidence[c] * ClassCarryOver : 0;
+            Array.Clear(classEvidence);
         }
         if (inEpisode && needed && !float.IsNaN(loudestDb))
             episodeLoudestDb = MathF.Max(episodeLoudestDb, loudestDb);
-        if (inEpisode && needed && rise.Length == shape.Length)
+        // The shape of a sound's onset is what runs remember and compare, so like is compared with like.
+        if (inEpisode && needed && rise.Length == shape.Length && shapeHops < CompareHops)
         {
             for (var m = 0; m < shape.Length; m++)
                 shape[m] += MathF.Max(0, rise[m]);
@@ -159,18 +150,50 @@ public sealed class NoiseGate(ListenerSettings settings)
                 classEvidence[(int)target] = ClassMemory * classEvidence[(int)target] +
                     MathF.Log(MathF.Max(classes[target] / verdict.TargetProbability, 1e-6f));
         }
-        return Rejecting && !wasRejecting;
+        if (!Rejecting || wasRejecting) return false;
+        // A sound of a confirmed run that the sound model rules out ends the run.
+        if (inherited) runUntil = Math.Min(runUntil, hop);
+        inherited = false;
+        return true;
     }
 
-    /// <summary>Decides whether the new sound continues the confirmed or rejected run before it.</summary>
+    private void EndEpisode()
+    {
+        if (Confirming)
+        {
+            runUntil = hop + runHops;
+            confirmedAt = hop;
+            classEvidence.CopyTo(runClassEvidence);
+            if (!inherited) shape.CopyTo(confirmedShape);
+        }
+        if (Rejecting)
+        {
+            rejectedRunUntil = hop + rejectedRunHops;
+            rejectedAt = hop;
+            shape.CopyTo(rejectedShape);
+        }
+        inEpisode = false;
+    }
+
+    /// <summary>
+    /// Decides whether the new sound continues the confirmed or rejected run before it. When it sounds like both, the
+    /// more recent one decides.
+    /// </summary>
     private void Compare()
     {
-        if (hop < runUntil && Similarity(shape, confirmedShape) >= settings.SameSoundSimilarity)
+        var continuesRun = hop < runUntil && Similarity(shape, confirmedShape) >= settings.SameSoundSimilarity;
+        var repeatsRejected = hop < rejectedRunUntil && Similarity(shape, rejectedShape) >= settings.SameSoundSimilarity;
+        if (continuesRun && repeatsRejected)
+            (continuesRun, repeatsRejected) = confirmedAt >= rejectedAt ? (true, false) : (false, true);
+        if (continuesRun)
         {
             inherited = true;
-            return;
+            evidence += settings.RunPrior;
+            // Which target it is decays from sound to sound within a run, so a cat after a car is called a cat.
+            for (var c = 0; c < classEvidence.Length; c++)
+                classEvidence[c] += runClassEvidence[c] * ClassCarryOver;
         }
-        if (hop < rejectedRunUntil && evidence < settings.ConfirmEvidence && Similarity(shape, rejectedShape) >= settings.SameSoundSimilarity)
+        else if (repeatsRejected && evidence < settings.ConfirmEvidence)
         {
             JustRejected = !Rejecting;
             evidence = MathF.Min(evidence, settings.RejectEvidence);
