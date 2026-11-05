@@ -68,7 +68,7 @@ public sealed class TrainingTests
     }
 
     [Fact]
-    public void RecordingsAreSavedListedLoadedAndDeleted()
+    public void RecordingsAreSavedListedLoadedRelabelledAndDeleted()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"quiet-night-{Guid.NewGuid():N}");
         try
@@ -87,7 +87,10 @@ public sealed class TrainingTests
             Assert.Equal(tone.Length, loaded.Length);
             for (var i = 0; i < tone.Length; i += 101)
                 Assert.Equal(tone[i], loaded[i], 1e-4f);
-            library.Delete(listed[1]);
+            var relabelled = library.Relabel(listed[1], NoiseClass.Motorcycle);
+            Assert.Equal(NoiseClass.Motorcycle, Assert.Single(library.List(), r => r.Created == cat.Created).Label);
+            Assert.Equal(tone.Length, library.Load(relabelled).Length);
+            library.Delete(relabelled);
             Assert.Single(library.List());
         }
         finally
