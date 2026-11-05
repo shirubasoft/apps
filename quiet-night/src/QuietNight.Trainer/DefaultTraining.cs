@@ -14,6 +14,8 @@ internal static class DefaultTraining
     private static readonly float[] OtherLevels = [6, 14, 22];
     private const int FrameReplayPerClass = 3_000;
     private const int SoundReplayPerClass = 200;
+    private const int FrameHeldOutPerClass = 500;
+    private const int SoundHeldOutPerClass = 60;
 
     public static readonly TrainingOptions FrameOptions = new(Epochs: 8, LearningRate: 0.003f, L2: 1, Seed: 1);
     public static readonly TrainingOptions SoundOptions = new(Epochs: 20, LearningRate: 0.003f, L2: 3, Seed: 2);
@@ -67,6 +69,8 @@ internal static class DefaultTraining
         new DetectorHeads(frameHead, soundHead).Save(output);
         Save(Path.Combine(output, DetectorHeads.FrameReplayFile), frames.Sample(FrameReplayPerClass, seed: 3));
         Save(Path.Combine(output, DetectorHeads.SoundReplayFile), sounds.Sample(SoundReplayPerClass, seed: 4));
+        Save(Path.Combine(output, DetectorHeads.FrameHeldOutFile), validationFrames.Sample(FrameHeldOutPerClass, seed: 5));
+        Save(Path.Combine(output, DetectorHeads.SoundHeldOutFile), validationSounds.Sample(SoundHeldOutPerClass, seed: 6));
         Console.WriteLine($"Wrote heads and replay examples to {output} in {clock.Elapsed:mm\\:ss}");
     }
 

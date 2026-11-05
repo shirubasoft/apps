@@ -10,6 +10,8 @@ public sealed record DetectorHeads(SoftmaxModel Frame, SoftmaxModel Sound)
     public const string SoundFile = "sound-head.bin";
     public const string FrameReplayFile = "frame-replay.bin";
     public const string SoundReplayFile = "sound-replay.bin";
+    public const string FrameHeldOutFile = "frame-held-out.bin";
+    public const string SoundHeldOutFile = "sound-held-out.bin";
 
     public static DetectorHeads Load(Func<string, Stream> open)
     {
@@ -25,11 +27,14 @@ public sealed record DetectorHeads(SoftmaxModel Frame, SoftmaxModel Sound)
         Write(Path.Combine(directory, SoundFile), Sound.Write);
     }
 
-    public static (LabeledSet Frames, LabeledSet Sounds) LoadReplay(Func<string, Stream> open)
+    public static ReferenceExamples LoadReference(Func<string, Stream> open)
     {
-        using var frames = open(FrameReplayFile);
-        using var sounds = open(SoundReplayFile);
-        return (LabeledSet.Read(frames), LabeledSet.Read(sounds));
+        LabeledSet Read(string name)
+        {
+            using var stream = open(name);
+            return LabeledSet.Read(stream);
+        }
+        return new ReferenceExamples(Read(FrameReplayFile), Read(SoundReplayFile), Read(FrameHeldOutFile), Read(SoundHeldOutFile));
     }
 
     private static void Write(string path, Action<Stream> write)

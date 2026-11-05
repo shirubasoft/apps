@@ -76,11 +76,12 @@ public static class ModelStore
         return DetectorHeads.Load(name => name == DetectorHeads.FrameFile ? frame : sound);
     }
 
-    public static async Task<(LabeledSet Frames, LabeledSet Sounds)> ReplayAsync()
+    public static async Task<ReferenceExamples> ReferenceAsync()
     {
-        var frames = new MemoryStream(await ReadAssetAsync(DetectorHeads.FrameReplayFile));
-        var sounds = new MemoryStream(await ReadAssetAsync(DetectorHeads.SoundReplayFile));
-        return DetectorHeads.LoadReplay(name => name == DetectorHeads.FrameReplayFile ? frames : sounds);
+        var files = new Dictionary<string, byte[]>();
+        foreach (var name in new[] { DetectorHeads.FrameReplayFile, DetectorHeads.SoundReplayFile, DetectorHeads.FrameHeldOutFile, DetectorHeads.SoundHeldOutFile })
+            files[name] = await ReadAssetAsync(name);
+        return DetectorHeads.LoadReference(name => new MemoryStream(files[name]));
     }
 
     public static void SavePersonal(DetectorHeads heads, int recordings)

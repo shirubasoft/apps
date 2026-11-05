@@ -14,6 +14,7 @@ public sealed class ExampleBuilder(SoundModel? soundModel, ListenerSettings sett
 {
     public static readonly TimeSpan Warmup = TimeSpan.FromSeconds(4);
     private const float OwnFloorMarginDb = 6;
+    private const float LoudPartsRangeDb = 10;
     private const float ActiveWindowShare = 0.3f;
     private const float QuietWindowShare = 0.02f;
 
@@ -47,7 +48,7 @@ public sealed class ExampleBuilder(SoundModel? soundModel, ListenerSettings sett
         for (var i = 0; i < mixture.Length; i++)
             mixture[i] = room[i] + placed[i];
 
-        var ownFloor = OwnFloorDb(placed.AsSpan(warmup, Math.Max(ListeningFormat.HopSamples, sound.Length))) + OwnFloorMarginDb;
+        var ownFloor = OwnFloorDb(placed.AsSpan(warmup, Math.Max(ListeningFormat.HopSamples, sound.Length)));
         var listener = new NightListener(OpenGate, settings);
         var soundAlone = new HopAnalyzer();
         var roomAlone = new HopAnalyzer();
@@ -117,7 +118,11 @@ public sealed class ExampleBuilder(SoundModel? soundModel, ListenerSettings sett
         }
     }
 
-    /// <summary>The tenth-percentile hop level of the sound alone: its own quiet parts.</summary>
+    /// <summary>
+    /// The level above which the sound alone counts as present: 6 dB above its own quiet parts (tenth percentile), but
+    /// never more than 10 dB below its loud parts (ninetieth percentile), so a steady engine counts throughout while the
+    /// pauses between meows and a recording's own room tone do not.
+    /// </summary>
     private static float OwnFloorDb(ReadOnlySpan<float> sound)
     {
         var count = sound.Length / ListeningFormat.HopSamples;
@@ -126,6 +131,6 @@ public sealed class ExampleBuilder(SoundModel? soundModel, ListenerSettings sett
         for (var h = 0; h < count; h++)
             levels[h] = Loudness.RmsDb(sound.Slice(h * ListeningFormat.HopSamples, ListeningFormat.HopSamples));
         Array.Sort(levels);
-        return levels[count / 10];
+        return MathF.Min(levels[count / 10] + OwnFloorMarginDb, levels[count * 9 / 10] - LoudPartsRangeDb);
     }
 }

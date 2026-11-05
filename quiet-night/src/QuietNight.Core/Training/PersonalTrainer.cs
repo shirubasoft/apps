@@ -5,7 +5,13 @@ namespace QuietNight.Core.Training;
 
 public sealed record LabeledAudio(float[] Samples, NoiseClass Label);
 
-/// <summary>Accuracies before and after training, measured on parts of the recordings held back from training.</summary>
+/// <summary>
+/// Reference examples bundled with the app: some replayed during fine-tuning, others held out from clips the bundled
+/// heads never trained on.
+/// </summary>
+public sealed record ReferenceExamples(LabeledSet Frames, LabeledSet Sounds, LabeledSet HeldOutFrames, LabeledSet HeldOutSounds);
+
+/// <summary>Accuracies before and after training, measured on the held-back end of each recording.</summary>
 public sealed record TrainingReport(
     int Recordings,
     int FrameExamples,
@@ -32,16 +38,24 @@ public sealed class PersonalTrainer(SoundModel model, ListenerSettings settings)
     private static readonly float[] Levels = [10, 18, 26];
     private static readonly TrainingOptions FineTuning = new(Epochs: 12, LearningRate: 0.002f, L2: 0, AnchorL2: 3, Seed: 11);
 
+    /// <param name="recordings">The user's labelled recordings.</param>
+    /// <param name="current">The heads in use now.</param>
+    /// <param name="reference">
+    /// Replayed reference examples to train with, and held-out reference examples, from clips the bundled heads never
+    /// saw, to check that nothing was forgotten.
+    /// </param>
+    /// <param name="progress">Receives progress from 0 to 1.</param>
     public (DetectorHeads Heads, TrainingReport Report) Train(
         IReadOnlyList<LabeledAudio> recordings,
         DetectorHeads current,
-        LabeledSet frameReplay,
-        LabeledSet soundReplay,
+        ReferenceExamples reference,
         IProgress<double>? progress = null)
     {
         var builder = new ExampleBuilder(model, settings);
-        var frames = new LabeledSet(FrameFeatures.Count);
-        var sounds = new LabeledSet(SoundRecognizer.FeatureCount);
+        var frameTrain = new LabeledSet(FrameFeatures.Count);
+        var soundTrain = new LabeledSet(SoundRecognizer.FeatureCount);
+        var frameValidation = new LabeledSet(FrameFeatures.Count);
+        var soundValidation = new LabeledSet(SoundRecognizer.FeatureCount);
         var beds = recordings.Where(r => !r.Label.IsTarget())
             .Select(r => (Source: (LabeledAudio?)r, Samples: RoomBed.Loop(Trim(r.Samples))))
             .Where(b => b.Samples.Length >= ListeningFormat.SampleRate)
@@ -49,30 +63,36 @@ public sealed class PersonalTrainer(SoundModel model, ListenerSettings settings)
             .Append((Source: (LabeledAudio?)null, Samples: RoomBed.Create()))
             .ToList();
         var step = 0;
-        var steps = recordings.Count * Levels.Length;
+        var steps = recordings.Count * (Levels.Length + 1);
         foreach (var recording in recordings)
         {
+            // The last fifth of each recording is held back before any mixing, so no overlapping window or alternative
+            // mix of the same moment lands on both sides.
             var sound = Trim(recording.Samples);
+            var held = (int)(sound.Length * ValidationShare);
+            var (training, validation) = held >= ListeningFormat.SampleRate
+                ? (sound[..^held], sound[^held..])
+                : (sound, Array.Empty<float>());
+            var bed = beds[step % beds.Count];
+            if (ReferenceEquals(bed.Source, recording)) bed = beds[^1];
             foreach (var level in Levels)
             {
-                var bed = beds[step % beds.Count];
-                if (ReferenceEquals(bed.Source, recording)) bed = beds[^1];
-                builder.Add(bed.Samples, sound, recording.Label, level, frames, sounds);
+                builder.Add(bed.Samples, training, recording.Label, level, frameTrain, soundTrain);
                 progress?.Report(0.6 * ++step / steps);
             }
+            if (validation.Length > 0)
+                builder.Add(bed.Samples, validation, recording.Label, Levels[Levels.Length / 2], frameValidation, soundValidation);
+            progress?.Report(0.6 * ++step / steps);
         }
 
-        var (frameTrain, frameValidation) = frames.Split(ValidationShare, seed: 5);
-        var (soundTrain, soundValidation) = sounds.Split(ValidationShare, seed: 6);
-        var (frameReplayTrain, frameReplayValidation) = frameReplay.Split(ValidationShare, seed: 7);
-        var (soundReplayTrain, soundReplayValidation) = soundReplay.Split(ValidationShare, seed: 8);
-
         var frameData = new LabeledSet(FrameFeatures.Count);
-        frameData.AddRange(frameReplayTrain);
+        frameData.AddRange(reference.Frames);
         frameData.AddRange(frameTrain, UserWeight);
         var soundData = new LabeledSet(SoundRecognizer.FeatureCount);
-        soundData.AddRange(soundReplayTrain);
+        soundData.AddRange(reference.Sounds);
         soundData.AddRange(soundTrain, UserWeight);
+        var frameReplayValidation = reference.HeldOutFrames;
+        var soundReplayValidation = reference.HeldOutSounds;
 
         var frameHead = SoftmaxTrainer.FineTune(current.Frame, frameData, FineTuning, Scaled(progress, 0.6, 0.15));
         var soundHead = SoftmaxTrainer.FineTune(current.Sound, soundData, FineTuning, Scaled(progress, 0.75, 0.25));
@@ -81,8 +101,8 @@ public sealed class PersonalTrainer(SoundModel model, ListenerSettings settings)
         var replayAfter = Mean(SoftmaxTrainer.BalancedAccuracy(frameHead, frameReplayValidation), SoftmaxTrainer.BalancedAccuracy(soundHead, soundReplayValidation));
         var report = new TrainingReport(
             recordings.Count,
-            frames.Count,
-            sounds.Count,
+            frameTrain.Count,
+            soundTrain.Count,
             SoftmaxTrainer.BalancedAccuracy(current.Frame, frameValidation),
             SoftmaxTrainer.BalancedAccuracy(frameHead, frameValidation),
             SoftmaxTrainer.BalancedAccuracy(current.Sound, soundValidation),
