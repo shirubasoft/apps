@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <PackageReference Include="Concentus" />
+    <PackageReference Include="Concentus.Oggfile" />
+    <ProjectReference Include="../../src/QuietNight.Core/QuietNight.Core.csproj" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ReferenceSounds/**/*.opus" CopyToOutputDirectory="PreserveNewest" LinkBase="ReferenceSounds" />
+    <None Include="../../reference-sounds/manifest.json" Link="ReferenceSounds/manifest.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/QuietNight/Resources/Raw/*.bin" LinkBase="Models" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/QuietNight/Resources/Raw/yamnet.onnx" Link="Models/yamnet.onnx" CopyToOutputDirectory="PreserveNewest" Condition="Exists('../../src/QuietNight/Resources/Raw/yamnet.onnx')" />
+  </ItemGroup>
+</Project>
